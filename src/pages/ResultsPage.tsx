@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { VoteQrLauncher } from "../components/VoteQrLauncher";
 import { WinnerConfetti } from "../components/WinnerConfetti";
 import { getDataStore } from "../lib/dataStore";
 import { computeCategoryRankings } from "../lib/rankings";
@@ -106,6 +107,8 @@ export function ResultsPage() {
       </header>
 
       {error && <p className="error">{error}</p>}
+
+      <VoteQrLauncher />
 
       <div className="results-grid">
         {rankings.map(({ category, ranked, winnerId }) => {
