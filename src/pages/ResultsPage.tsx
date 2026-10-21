@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { WinnerConfetti } from "../components/WinnerConfetti";
 import { getDataStore } from "../lib/dataStore";
 import { computeCategoryRankings } from "../lib/rankings";
 import type { ContestBundle, Vote } from "../lib/types";
@@ -11,6 +12,16 @@ export function ResultsPage() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -105,23 +116,46 @@ export function ResultsPage() {
           // Stable DOM order so transforms can slide rows between ranks.
           const stableRows = [...runnerUps].sort((a, b) => a.name.localeCompare(b.name));
 
+          const isExpanded = Boolean(expandedCategories[category.id]);
+
           return (
             <section className="result-card" key={category.id}>
-              <h2>{category.name}</h2>
+              <div className="result-card-header">
+                <h2>{category.name}</h2>
+                {isMobile && runnerUps.length > 0 && (
+                  <button
+                    type="button"
+                    className={isExpanded ? "runner-ups-toggle expanded" : "runner-ups-toggle"}
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? "Hide runner-ups" : "Show runner-ups"}
+                    onClick={() =>
+                      setExpandedCategories((prev) => ({
+                        ...prev,
+                        [category.id]: !prev[category.id],
+                      }))
+                    }
+                  >
+                    <span className="runner-ups-caret" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
 
               <div
                 className={winner ? "winner-spotlight has-winner" : "winner-spotlight empty"}
                 key={winner?.contestantId ?? "none"}
               >
-                <span className="winner-spotlight-label">{winner ? "Winning" : "Waiting for votes"}</span>
-                <p className="winner-spotlight-name">{winner?.name ?? "—"}</p>
-                {winner && (
-                  <>
-                    <span className="winner-spotlight-count">
-                      {winner.count} vote{winner.count === 1 ? "" : "s"}
-                    </span>
-                  </>
-                )}
+                {winner && <WinnerConfetti />}
+                <div className="winner-spotlight-content">
+                  <span className="winner-spotlight-label">{winner ? "Winning" : "Waiting for votes"}</span>
+                  <p className="winner-spotlight-name">{winner?.name ?? "—"}</p>
+                  {winner && (
+                    <>
+                      <span className="winner-spotlight-count">
+                        {winner.count} vote{winner.count === 1 ? "" : "s"}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {ranked.length === 0 ? (
@@ -129,44 +163,48 @@ export function ResultsPage() {
               ) : runnerUps.length === 0 ? (
                 <p className="muted">No runner-ups yet.</p>
               ) : (
-                <ol className="rank-list rank-list-animated" style={{ height: runnerUps.length * ROW_HEIGHT }}>
-                  {stableRows.map((entry) => {
-                    const index = runnerUps.findIndex((row) => row.contestantId === entry.contestantId);
-                    const place = index + 2; // winner holds 1st in the spotlight
-                    const width = Math.round((entry.count / barMax) * 100);
-                    const rowClass = entry.eligible ? "rank-row" : "rank-row ineligible";
+                <>
+                  {(!isMobile || isExpanded) && (
+                    <ol className="rank-list rank-list-animated" style={{ height: runnerUps.length * ROW_HEIGHT }}>
+                      {stableRows.map((entry) => {
+                        const index = runnerUps.findIndex((row) => row.contestantId === entry.contestantId);
+                        const place = index + 2; // winner holds 1st in the spotlight
+                        const width = Math.round((entry.count / barMax) * 100);
+                        const rowClass = entry.eligible ? "rank-row" : "rank-row ineligible";
 
-                    return (
-                      <li
-                        key={entry.contestantId}
-                        className={rowClass}
-                        style={{
-                          transform: `translateY(${index * ROW_HEIGHT}px)`,
-                          zIndex: entry.eligible ? 2 : 1,
-                        }}
-                      >
-                        <div className="rank-meta">
-                          <span className="rank-place">{place}</span>
-                          <span className="rank-name">
-                            {entry.name}
-                            {!entry.eligible && entry.wonCategoryName && (
-                              <span className="won-elsewhere"> (won {entry.wonCategoryName})</span>
-                            )}
-                          </span>
-                          <span className="rank-count">{entry.count}</span>
-                        </div>
-                        <div className="rank-bar" aria-hidden="true">
-                          <span
+                        return (
+                          <li
+                            key={entry.contestantId}
+                            className={rowClass}
                             style={{
-                              width: `${entry.eligible ? width : 0}%`,
-                              opacity: entry.eligible ? 1 : 0.25,
+                              transform: `translateY(${index * ROW_HEIGHT}px)`,
+                              zIndex: entry.eligible ? 2 : 1,
                             }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
+                          >
+                            <div className="rank-meta">
+                              <span className="rank-place">{place}</span>
+                              <span className="rank-name">
+                                {entry.name}
+                                {!entry.eligible && entry.wonCategoryName && (
+                                  <span className="won-elsewhere"> (won {entry.wonCategoryName})</span>
+                                )}
+                              </span>
+                              <span className="rank-count">{entry.count}</span>
+                            </div>
+                            <div className="rank-bar" aria-hidden="true">
+                              <span
+                                style={{
+                                  width: `${entry.eligible ? width : 0}%`,
+                                  opacity: entry.eligible ? 1 : 0.25,
+                                }}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </>
               )}
             </section>
           );
