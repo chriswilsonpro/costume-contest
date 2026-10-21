@@ -10,7 +10,16 @@ export function VoteQrLauncher() {
   const [open, setOpen] = useState(false);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const url = useMemo(() => votingUrl(), []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 640px)');
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +58,7 @@ export function VoteQrLauncher() {
     };
   }, [open]);
 
-  if (error || !dataUrl) {
+  if (isMobile || error || !dataUrl) {
     return null;
   }
 
