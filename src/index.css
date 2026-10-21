@@ -598,6 +598,14 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.winner-disqualify-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(246, 231, 212, 0.78);
+}
+
 @keyframes winner-aurora {
   0% {
     background-position: 0% 50%;
