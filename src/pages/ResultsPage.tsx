@@ -4,6 +4,8 @@ import { getDataStore } from '../lib/dataStore';
 import { computeCategoryRankings } from '../lib/rankings';
 import type { ContestBundle, Vote } from '../lib/types';
 
+const ROW_HEIGHT = 58;
+
 export function ResultsPage() {
   const [bundle, setBundle] = useState<ContestBundle | null>(null);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -107,29 +109,61 @@ export function ResultsPage() {
             1,
           );
 
+          // Stable DOM order so transforms can slide rows between ranks.
+          const stableRows = [...ranked].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
+
           return (
             <section className="result-card" key={category.id}>
               <h2>{category.name}</h2>
-              {winner ? (
-                <p className="winner-line">
-                  Leading: <strong>{winner.name}</strong>
+
+              <div
+                className={
+                  winner ? 'winner-spotlight has-winner' : 'winner-spotlight empty'
+                }
+                key={winner?.contestantId ?? 'none'}
+              >
+                <span className="winner-spotlight-label">
+                  {winner ? 'Winning' : 'Waiting for votes'}
+                </span>
+                <p className="winner-spotlight-name">
+                  {winner?.name ?? '—'}
                 </p>
-              ) : (
-                <p className="muted winner-line">No winner yet</p>
-              )}
+                {winner && (
+                  <span className="winner-spotlight-count">
+                    {winner.count} vote{winner.count === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+
               {ranked.length === 0 ? (
                 <p className="muted">No contestants yet.</p>
               ) : (
-                <ol className="rank-list">
-                  {ranked.map((entry, index) => {
+                <ol
+                  className="rank-list rank-list-animated"
+                  style={{ height: ranked.length * ROW_HEIGHT }}
+                >
+                  {stableRows.map((entry) => {
+                    const index = ranked.findIndex(
+                      (row) => row.contestantId === entry.contestantId,
+                    );
                     const width = Math.round((entry.count / barMax) * 100);
                     const rowClass = entry.isWinner
                       ? 'rank-row leader'
                       : entry.eligible
                         ? 'rank-row'
                         : 'rank-row ineligible';
+
                     return (
-                      <li key={entry.contestantId} className={rowClass}>
+                      <li
+                        key={entry.contestantId}
+                        className={rowClass}
+                        style={{
+                          transform: `translateY(${index * ROW_HEIGHT}px)`,
+                          zIndex: entry.isWinner ? 3 : entry.eligible ? 2 : 1,
+                        }}
+                      >
                         <div className="rank-meta">
                           <span className="rank-place">{index + 1}</span>
                           <span className="rank-name">

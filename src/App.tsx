@@ -1,7 +1,7 @@
-import { NavLink, Route, Routes } from "react-router-dom";
-import { AdminPage } from "./pages/AdminPage";
-import { ResultsPage } from "./pages/ResultsPage";
-import { VotePage } from "./pages/VotePage";
+import { Route, Routes } from 'react-router-dom';
+import { AdminPage } from './pages/AdminPage';
+import { ResultsPage } from './pages/ResultsPage';
+import { VotePage } from './pages/VotePage';
 
 export default function App() {
   return (
