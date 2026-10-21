@@ -201,6 +201,27 @@ export const amplifyStore = {
     };
   },
 
+  async updateContestant(
+    id: string,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+  ): Promise<Contestant> {
+    const payload = {
+      id,
+      ...patch,
+      ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+    };
+    const { data, errors } = await client.models.Contestant.update(payload);
+    if (errors?.length || !data) {
+      throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Update failed');
+    }
+    return {
+      id: data.id,
+      contestId: data.contestId,
+      name: data.name,
+      sortOrder: data.sortOrder ?? 0,
+    };
+  },
+
   async getBallot(ballotId: string): Promise<Ballot | null> {
     const { data, errors } = await client.models.Ballot.get({ id: ballotId });
     if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));

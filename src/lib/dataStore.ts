@@ -24,6 +24,10 @@ export type DataStore = {
     id: string,
     patch: Partial<Pick<Category, 'name' | 'sortOrder'>>,
   ): Promise<Category>;
+  updateContestant(
+    id: string,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+  ): Promise<Contestant>;
   getBallot(ballotId: string): Promise<Ballot | null>;
   getVotesForBallot(ballotId: string): Promise<Vote[]>;
   listVotes(contestId: string): Promise<Vote[]>;
@@ -62,6 +66,7 @@ function createStore(): DataStore {
         amplifyStore.addContestant(contestId, name),
       removeContestant: (id) => amplifyStore.removeContestant(id),
       updateCategory: (id, patch) => amplifyStore.updateCategory(id, patch),
+      updateContestant: (id, patch) => amplifyStore.updateContestant(id, patch),
       getBallot: (ballotId) => amplifyStore.getBallot(ballotId),
       getVotesForBallot: (ballotId) => amplifyStore.getVotesForBallot(ballotId),
       listVotes: (contestId) => amplifyStore.listVotes(contestId),
@@ -80,6 +85,7 @@ function createStore(): DataStore {
       localStore.addContestant(contestId, name),
     removeContestant: (id) => localStore.removeContestant(id),
     updateCategory: (id, patch) => localStore.updateCategory(id, patch),
+    updateContestant: (id, patch) => localStore.updateContestant(id, patch),
     getBallot: (ballotId) => localStore.getBallot(ballotId),
     getVotesForBallot: (ballotId) => localStore.getVotesForBallot(ballotId),
     listVotes: (contestId) => localStore.listVotes(contestId),

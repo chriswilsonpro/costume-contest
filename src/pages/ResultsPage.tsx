@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDataStore } from '../lib/dataStore';
+import { computeCategoryRankings } from '../lib/rankings';
 import type { ContestBundle, Vote } from '../lib/types';
-
-type Ranked = {
-  contestantId: string;
-  name: string;
-  count: number;
-};
 
 export function ResultsPage() {
   const [bundle, setBundle] = useState<ContestBundle | null>(null);
@@ -50,25 +45,11 @@ export function ResultsPage() {
 
   const rankings = useMemo(() => {
     if (!bundle) return [];
-    return bundle.categories.map((category) => {
-      const counts = new Map<string, number>();
-      for (const contestant of bundle.contestants) {
-        counts.set(contestant.id, 0);
-      }
-      for (const vote of votes) {
-        if (vote.categoryId !== category.id) continue;
-        counts.set(vote.contestantId, (counts.get(vote.contestantId) ?? 0) + 1);
-      }
-      const ranked: Ranked[] = bundle.contestants
-        .map((contestant) => ({
-          contestantId: contestant.id,
-          name: contestant.name,
-          count: counts.get(contestant.id) ?? 0,
-        }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-
-      return { category, ranked };
-    });
+    return computeCategoryRankings(
+      bundle.categories,
+      bundle.contestants,
+      votes,
+    );
   }, [bundle, votes]);
 
   const totalBallots = useMemo(() => {
@@ -106,6 +87,8 @@ export function ResultsPage() {
           <p className="lede">
             {totalBallots} ballot{totalBallots === 1 ? '' : 's'} counted
             {bundle.contest.isOpen ? ' · voting open' : ' · voting closed'}
+            {' · '}
+            one win per costume
           </p>
         </div>
         <Link className="btn btn-secondary" to="/">
@@ -116,34 +99,57 @@ export function ResultsPage() {
       {error && <p className="error">{error}</p>}
 
       <div className="results-grid">
-        {rankings.map(({ category, ranked }) => {
-          const leader = ranked[0];
-          const leaderCount = leader?.count ?? 0;
+        {rankings.map(({ category, ranked, winnerId }) => {
+          const winner = ranked.find((entry) => entry.contestantId === winnerId);
+          const barMax = Math.max(
+            winner?.count ?? 0,
+            ...ranked.filter((e) => e.eligible).map((e) => e.count),
+            1,
+          );
+
           return (
             <section className="result-card" key={category.id}>
               <h2>{category.name}</h2>
+              {winner ? (
+                <p className="winner-line">
+                  Leading: <strong>{winner.name}</strong>
+                </p>
+              ) : (
+                <p className="muted winner-line">No winner yet</p>
+              )}
               {ranked.length === 0 ? (
                 <p className="muted">No contestants yet.</p>
               ) : (
                 <ol className="rank-list">
                   {ranked.map((entry, index) => {
-                    const isLeader = entry.count > 0 && entry.count === leaderCount;
-                    const width =
-                      leaderCount === 0
-                        ? 0
-                        : Math.round((entry.count / leaderCount) * 100);
+                    const width = Math.round((entry.count / barMax) * 100);
+                    const rowClass = entry.isWinner
+                      ? 'rank-row leader'
+                      : entry.eligible
+                        ? 'rank-row'
+                        : 'rank-row ineligible';
                     return (
-                      <li
-                        key={entry.contestantId}
-                        className={isLeader ? 'rank-row leader' : 'rank-row'}
-                      >
+                      <li key={entry.contestantId} className={rowClass}>
                         <div className="rank-meta">
                           <span className="rank-place">{index + 1}</span>
-                          <span className="rank-name">{entry.name}</span>
+                          <span className="rank-name">
+                            {entry.name}
+                            {!entry.eligible && entry.wonCategoryName && (
+                              <span className="won-elsewhere">
+                                {' '}
+                                (won {entry.wonCategoryName})
+                              </span>
+                            )}
+                          </span>
                           <span className="rank-count">{entry.count}</span>
                         </div>
                         <div className="rank-bar" aria-hidden="true">
-                          <span style={{ width: `${width}%` }} />
+                          <span
+                            style={{
+                              width: `${entry.eligible ? width : 0}%`,
+                              opacity: entry.eligible ? 1 : 0.25,
+                            }}
+                          />
                         </div>
                       </li>
                     );

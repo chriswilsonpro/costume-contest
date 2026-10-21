@@ -167,6 +167,23 @@ export const localStore = {
     return db.categories[index];
   },
 
+  async updateContestant(
+    id: string,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+  ): Promise<Contestant> {
+    const db = readDb();
+    const index = db.contestants.findIndex((c) => c.id === id);
+    if (index < 0) throw new Error('Contestant not found');
+    const nextName = patch.name?.trim();
+    db.contestants[index] = {
+      ...db.contestants[index],
+      ...patch,
+      ...(nextName !== undefined ? { name: nextName } : {}),
+    };
+    writeDb(db);
+    return db.contestants[index];
+  },
+
   async getBallot(ballotId: string): Promise<Ballot | null> {
     return readDb().ballots.find((b) => b.id === ballotId) ?? null;
   },

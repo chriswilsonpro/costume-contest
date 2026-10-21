@@ -405,6 +405,69 @@ input:focus {
   border-bottom: 1px solid var(--line);
 }
 
+.hint {
+  margin: -0.35rem 0 0.9rem;
+  font-size: 0.9rem;
+}
+
+.editable-name {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  margin: -0.35rem -0.45rem;
+  border-radius: 8px;
+  cursor: text;
+  flex: 1;
+}
+
+.editable-name:hover {
+  background: rgba(246, 231, 212, 0.08);
+}
+
+.inline-edit {
+  flex: 1;
+}
+
+.category-list .category-row {
+  cursor: grab;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0.45rem 0.35rem;
+  margin-bottom: 0.25rem;
+  border-bottom-color: var(--line);
+  gap: 0.55rem;
+}
+
+.category-list .category-row:active {
+  cursor: grabbing;
+}
+
+.category-list .category-row.dragging {
+  opacity: 0.45;
+}
+
+.category-list .category-row.drop-target {
+  border-color: rgba(224, 122, 58, 0.65);
+  background: rgba(224, 122, 58, 0.1);
+}
+
+.drag-handle {
+  color: var(--ink-muted);
+  letter-spacing: -0.12em;
+  user-select: none;
+  padding: 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.category-list input {
+  flex: 1;
+}
+
 .live-pill::after {
   content: '';
   display: inline-block;
@@ -476,6 +539,27 @@ input:focus {
 .rank-row.leader .rank-place {
   background: var(--accent);
   color: #fff8f0;
+}
+
+.rank-row.ineligible {
+  opacity: 0.55;
+}
+
+.won-elsewhere {
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-size: 0.85em;
+}
+
+.winner-line {
+  margin: -0.35rem 0 0.9rem;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+.blocked-note {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
 }
 
 .rank-name {
