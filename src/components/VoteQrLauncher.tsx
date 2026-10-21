@@ -53,7 +53,7 @@ export function VoteQrLauncher() {
     return null;
   }
 
-  return (
+  return createPortal(
     <>
       {!open && (
         <button
@@ -67,46 +67,45 @@ export function VoteQrLauncher() {
         </button>
       )}
 
-      {open &&
-        createPortal(
+      {open && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
           <div
-            className="modal-backdrop"
-            role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setOpen(false);
-            }}
+            className="modal-dialog vote-qr-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vote-qr-title"
           >
-            <div
-              className="modal-dialog vote-qr-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="vote-qr-title"
-            >
-              <h2 id="vote-qr-title">Scan to vote</h2>
-              <p className="muted">
-                Point your phone camera at this code to open the voting page.
-              </p>
-              <img
-                className="vote-qr-large"
-                src={dataUrl}
-                alt={`QR code for ${url}`}
-                width={280}
-                height={280}
-              />
-              <p className="vote-qr-url muted">{url}</p>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setOpen(false)}
-                >
-                  Close
-                </button>
-              </div>
+            <h2 id="vote-qr-title">Scan to vote</h2>
+            <p className="muted">
+              Point your phone camera at this code to open the voting page.
+            </p>
+            <img
+              className="vote-qr-large"
+              src={dataUrl}
+              alt={`QR code for ${url}`}
+              width={280}
+              height={280}
+            />
+            <p className="vote-qr-url muted">{url}</p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setOpen(false)}
+              >
+                Close
+              </button>
             </div>
-          </div>,
-          document.body,
-        )}
-    </>
+          </div>
+        </div>
+      )}
+    </>,
+    document.body,
   );
 }

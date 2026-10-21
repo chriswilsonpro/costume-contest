@@ -121,6 +121,7 @@ input {
 .page.results-page {
   width: calc(100% - 2rem);
   max-width: none;
+  min-height: 100vh;
 }
 
 @keyframes rise {
