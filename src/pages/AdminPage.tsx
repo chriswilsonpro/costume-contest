@@ -6,9 +6,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { Link } from 'react-router-dom';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { isAdminUnlocked, lockAdmin, unlockAdmin } from '../lib/adminAuth';
 import { getDataStore } from '../lib/dataStore';
 import type { ContestBundle } from '../lib/types';
+
+type PendingDelete = { id: string; name: string };
 
 export function AdminPage() {
   const [unlocked, setUnlocked] = useState(isAdminUnlocked());
@@ -26,6 +29,9 @@ export function AdminPage() {
     null,
   );
   const [editingContestantName, setEditingContestantName] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [modalBusy, setModalBusy] = useState(false);
   const mode = getDataStore().mode;
 
   async function refresh() {
@@ -104,8 +110,10 @@ export function AdminPage() {
     }
   }
 
-  async function handleRemoveContestant(id: string) {
-    if (!bundle) return;
+  async function confirmRemoveContestant() {
+    if (!bundle || !pendingDelete) return;
+    const { id } = pendingDelete;
+    setModalBusy(true);
     setError(null);
     try {
       await getDataStore().removeContestant(id);
@@ -117,8 +125,31 @@ export function AdminPage() {
         setEditingContestantId(null);
         setEditingContestantName('');
       }
+      setPendingDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not remove contestant');
+    } finally {
+      setModalBusy(false);
+    }
+  }
+
+  async function confirmResetEverything() {
+    setModalBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await getDataStore().resetEverything();
+      setBundle(null);
+      setContestName('Halloween Costume Contest');
+      setNewContestant('');
+      setEditingContestantId(null);
+      setEditingContestantName('');
+      setConfirmReset(false);
+      setMessage('Everything was reset. Create a new contest to start over.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset');
+    } finally {
+      setModalBusy(false);
     }
   }
 
@@ -385,7 +416,12 @@ export function AdminPage() {
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      onClick={() => void handleRemoveContestant(contestant.id)}
+                      onClick={() =>
+                        setPendingDelete({
+                          id: contestant.id,
+                          name: contestant.name,
+                        })
+                      }
                     >
                       Remove
                     </button>
@@ -438,6 +474,49 @@ export function AdminPage() {
             </ul>
           </section>
         </>
+      )}
+
+      <section className="panel danger-panel">
+        <h2>Danger zone</h2>
+        <p className="muted">
+          Reset clears the contest, categories, contestants, ballots, and votes.
+          This cannot be undone.
+        </p>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={() => setConfirmReset(true)}
+        >
+          Reset everything
+        </button>
+      </section>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Remove contestant?"
+          message={`Remove “${pendingDelete.name}” from the contest? Their votes will be deleted too.`}
+          confirmLabel="Remove"
+          danger
+          busy={modalBusy}
+          onConfirm={() => void confirmRemoveContestant()}
+          onCancel={() => {
+            if (!modalBusy) setPendingDelete(null);
+          }}
+        />
+      )}
+
+      {confirmReset && (
+        <ConfirmModal
+          title="Reset everything?"
+          message="This deletes the contest, all categories, contestants, ballots, and votes. You’ll need to create a new contest afterward."
+          confirmLabel="Reset everything"
+          danger
+          busy={modalBusy}
+          onConfirm={() => void confirmResetEverything()}
+          onCancel={() => {
+            if (!modalBusy) setConfirmReset(false);
+          }}
+        />
       )}
     </main>
   );

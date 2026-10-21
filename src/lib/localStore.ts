@@ -155,6 +155,10 @@ export const localStore = {
     writeDb(db);
   },
 
+  async resetEverything(): Promise<void> {
+    writeDb(emptyDb());
+  },
+
   async updateCategory(
     id: string,
     patch: Partial<Pick<Category, 'name' | 'sortOrder'>>,

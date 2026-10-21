@@ -20,6 +20,7 @@ export type DataStore = {
   ): Promise<Contest>;
   addContestant(contestId: string, name: string): Promise<Contestant>;
   removeContestant(id: string): Promise<void>;
+  resetEverything(): Promise<void>;
   updateCategory(
     id: string,
     patch: Partial<Pick<Category, 'name' | 'sortOrder'>>,
@@ -65,6 +66,7 @@ function createStore(): DataStore {
       addContestant: (contestId, name) =>
         amplifyStore.addContestant(contestId, name),
       removeContestant: (id) => amplifyStore.removeContestant(id),
+      resetEverything: () => amplifyStore.resetEverything(),
       updateCategory: (id, patch) => amplifyStore.updateCategory(id, patch),
       updateContestant: (id, patch) => amplifyStore.updateContestant(id, patch),
       getBallot: (ballotId) => amplifyStore.getBallot(ballotId),
@@ -84,6 +86,7 @@ function createStore(): DataStore {
     addContestant: (contestId, name) =>
       localStore.addContestant(contestId, name),
     removeContestant: (id) => localStore.removeContestant(id),
+    resetEverything: () => localStore.resetEverything(),
     updateCategory: (id, patch) => localStore.updateCategory(id, patch),
     updateContestant: (id, patch) => localStore.updateContestant(id, patch),
     getBallot: (ballotId) => localStore.getBallot(ballotId),

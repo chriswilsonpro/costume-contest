@@ -337,4 +337,43 @@ export const amplifyStore = {
 
     return { ballot, votes };
   },
+
+  async resetEverything(): Promise<void> {
+    const deleteAll = async (
+      list: () => Promise<{ data?: { id: string }[] | null; errors?: { message: string }[] }>,
+      remove: (id: string) => Promise<{ errors?: { message: string }[] }>,
+    ) => {
+      const { data, errors } = await list();
+      if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
+      await Promise.all(
+        (data ?? []).map(async (row) => {
+          const result = await remove(row.id);
+          if (result.errors?.length) {
+            throw new Error(result.errors.map((e) => e.message).join(', '));
+          }
+        }),
+      );
+    };
+
+    await deleteAll(
+      () => client.models.Vote.list(),
+      (id) => client.models.Vote.delete({ id }),
+    );
+    await deleteAll(
+      () => client.models.Ballot.list(),
+      (id) => client.models.Ballot.delete({ id }),
+    );
+    await deleteAll(
+      () => client.models.Contestant.list(),
+      (id) => client.models.Contestant.delete({ id }),
+    );
+    await deleteAll(
+      () => client.models.Category.list(),
+      (id) => client.models.Category.delete({ id }),
+    );
+    await deleteAll(
+      () => client.models.Contest.list(),
+      (id) => client.models.Contest.delete({ id }),
+    );
+  },
 };
