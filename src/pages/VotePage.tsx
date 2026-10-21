@@ -242,13 +242,26 @@ export function VotePage() {
     setPhase('done');
   }
 
-  function changeVotes() {
+  async function changeVotes() {
     if (!bundle?.contest.isOpen) {
       setPhase('closed');
       return;
     }
+    // Start over from category 1 with a blank ballot so every contestant
+    // is selectable again (aside from live exclusive winners).
+    setSelections({});
+    setStep(0);
     setPhase('voting');
-    setStep(firstIncompleteStep(categories, selections));
+    setError(null);
+    try {
+      await getDataStore().saveBallotVotes({
+        ballotId,
+        contestId: bundle.contest.id,
+        selections: {},
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset ballot');
+    }
   }
 
   if (phase === 'loading') {
@@ -324,7 +337,11 @@ export function VotePage() {
         </ul>
         <div className="actions">
           {bundle?.contest.isOpen && (
-            <button type="button" className="btn btn-secondary" onClick={changeVotes}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void changeVotes()}
+            >
               Change my votes
             </button>
           )}
