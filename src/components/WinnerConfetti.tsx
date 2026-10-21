@@ -3,12 +3,12 @@ import type { CSSProperties } from 'react';
 const PIECE_COUNT = 28;
 
 const COLORS = [
-  '#e07a3a',
-  '#f6e7d4',
-  '#3f6b4e',
-  '#b84f1f',
-  '#f0c14a',
-  '#fff8f0',
+  '#a100ff',
+  '#c440ff',
+  '#7b5cff',
+  '#f4eefc',
+  '#6e00b8',
+  '#e8d5ff',
 ];
 
 type Piece = {
