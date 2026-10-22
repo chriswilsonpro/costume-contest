@@ -366,6 +366,17 @@ input {
   background: rgba(161, 0, 255, 0.45);
 }
 
+.progress-dot.skipped {
+  background: rgba(244, 238, 252, 0.18);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(244, 238, 252, 0.2) 3px,
+    rgba(244, 238, 252, 0.2) 6px
+  );
+}
+
 .progress-dot.active {
   background: var(--accent);
   box-shadow: 0 0 18px rgba(161, 0, 255, 0.45);

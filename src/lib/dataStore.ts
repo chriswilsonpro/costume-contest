@@ -41,6 +41,9 @@ export type DataStore = {
     contestId: string,
     listener: (votes: Vote[]) => void,
   ): () => void;
+  subscribeActiveContest(
+    listener: (bundle: ContestBundle | null) => void,
+  ): () => void;
 };
 
 function hasAmplifyDataConfig(): boolean {
@@ -75,6 +78,8 @@ function createStore(): DataStore {
       saveBallotVotes: (input) => amplifyStore.saveBallotVotes(input),
       subscribeVotes: (contestId, listener) =>
         amplifyStore.subscribeVotes(contestId, listener),
+      subscribeActiveContest: (listener) =>
+        amplifyStore.subscribeActiveContest(listener),
     };
   }
 
@@ -94,6 +99,8 @@ function createStore(): DataStore {
     listVotes: (contestId) => localStore.listVotes(contestId),
     saveBallotVotes: (input) => localStore.saveBallotVotes(input),
     subscribeVotes: (_contestId, listener) => localStore.subscribeVotes(listener),
+    subscribeActiveContest: (listener) =>
+      localStore.subscribeActiveContest(listener),
   };
 }
 

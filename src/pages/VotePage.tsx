@@ -17,11 +17,30 @@ function buildSelectionsFromVotes(
   return map;
 }
 
-function firstIncompleteStep(
+function completeFlagKey(ballotId: string): string {
+  return `costume_ballot_complete_${ballotId}`;
+}
+
+function isBallotMarkedComplete(ballotId: string): boolean {
+  return localStorage.getItem(completeFlagKey(ballotId)) === '1';
+}
+
+function markBallotComplete(ballotId: string): void {
+  localStorage.setItem(completeFlagKey(ballotId), '1');
+}
+
+function clearBallotComplete(ballotId: string): void {
+  localStorage.removeItem(completeFlagKey(ballotId));
+}
+
+function firstOpenStep(
   categories: { id: string }[],
   selections: Record<string, string>,
+  skipped: Set<string>,
 ): number {
-  const index = categories.findIndex((category) => !selections[category.id]);
+  const index = categories.findIndex(
+    (category) => !selections[category.id] && !skipped.has(category.id),
+  );
   return index >= 0 ? index : Math.max(categories.length - 1, 0);
 }
 
@@ -54,12 +73,34 @@ function pruneIneligibleSelections(
   return changed ? next : selections;
 }
 
+function availableForCategory(
+  categoryId: string,
+  contestants: ContestBundle['contestants'],
+  categories: ContestBundle['categories'],
+  selections: Record<string, string>,
+  liveVotes: Vote[],
+): ContestBundle['contestants'] {
+  const blocked = winnersOfEarlierCategories(
+    categories,
+    contestants,
+    liveVotes,
+    categoryId,
+  );
+  const taken = new Set<string>();
+  for (const [id, contestantId] of Object.entries(selections)) {
+    if (id === categoryId) continue;
+    taken.add(contestantId);
+  }
+  return contestants.filter((c) => !taken.has(c.id) && !blocked.has(c.id));
+}
+
 export function VotePage() {
   const [bundle, setBundle] = useState<ContestBundle | null>(null);
   const [liveVotes, setLiveVotes] = useState<Vote[]>([]);
   const [phase, setPhase] = useState<Phase>('loading');
   const [step, setStep] = useState(0);
   const [selections, setSelections] = useState<Record<string, string>>({});
+  const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
@@ -88,14 +129,18 @@ export function VotePage() {
         const existingVotes = await store.getVotesForBallot(ballotId);
         if (cancelled) return;
 
-        if (existingVotes.length > 0) {
+        if (existingVotes.length > 0 || isBallotMarkedComplete(ballotId)) {
           const map = buildSelectionsFromVotes(existingVotes);
           setSelections(map);
-          const complete = active.categories.every((category) =>
-            Boolean(map[category.id]),
-          );
 
-          if (complete) {
+          if (isBallotMarkedComplete(ballotId)) {
+            // Mark unvoted categories as skipped for the summary.
+            const skippedIds = new Set(
+              active.categories
+                .filter((category) => !map[category.id])
+                .map((category) => category.id),
+            );
+            setSkipped(skippedIds);
             setPhase('done');
             return;
           }
@@ -105,7 +150,7 @@ export function VotePage() {
             return;
           }
 
-          setStep(firstIncompleteStep(active.categories, map));
+          setStep(firstOpenStep(active.categories, map, new Set()));
           setPhase('voting');
           return;
         }
@@ -188,9 +233,12 @@ export function VotePage() {
     blockedByEarlierWin.has(c.id),
   );
 
-  const allSelected =
+  const ballotResolved =
     categories.length > 0 &&
-    categories.every((category) => Boolean(selections[category.id]));
+    categories.every(
+      (category) =>
+        Boolean(selections[category.id]) || skipped.has(category.id),
+    );
 
   async function persistSelections(next: Record<string, string>) {
     if (!bundle) return;
@@ -211,6 +259,48 @@ export function VotePage() {
     }
   }
 
+  function finishBallot() {
+    markBallotComplete(ballotId);
+    setPhase('done');
+  }
+
+  function advanceFrom(stepIndex: number, nextSkipped: Set<string>, nextSelections: Record<string, string>) {
+    if (!bundle) return;
+
+    // Auto-skip remaining categories that have nobody left to pick.
+    let index = stepIndex + 1;
+    const autoSkipped = new Set(nextSkipped);
+    while (index < categories.length) {
+      const category = categories[index];
+      if (nextSelections[category.id] || autoSkipped.has(category.id)) {
+        index += 1;
+        continue;
+      }
+      const available = availableForCategory(
+        category.id,
+        contestants,
+        categories,
+        nextSelections,
+        liveVotes,
+      );
+      if (available.length === 0) {
+        autoSkipped.add(category.id);
+        index += 1;
+        continue;
+      }
+      break;
+    }
+
+    setSkipped(autoSkipped);
+
+    if (index >= categories.length) {
+      finishBallot();
+      return;
+    }
+
+    setStep(index);
+  }
+
   function selectContestant(contestantId: string) {
     if (!currentCategory || !bundle) return;
     if (blockedByEarlierWin.has(contestantId)) return;
@@ -225,12 +315,31 @@ export function VotePage() {
       }
     }
 
+    const nextSkipped = new Set(skipped);
+    nextSkipped.delete(currentCategory.id);
+
     setSelections(next);
+    setSkipped(nextSkipped);
     void persistSelections(next);
   }
 
+  function skipCategory() {
+    if (!currentCategory || !bundle) return;
+
+    const nextSelections = { ...selections };
+    delete nextSelections[currentCategory.id];
+    const nextSkipped = new Set(skipped);
+    nextSkipped.add(currentCategory.id);
+
+    setSelections(nextSelections);
+    setSkipped(nextSkipped);
+    void persistSelections(nextSelections);
+    advanceFrom(step, nextSkipped, nextSelections);
+  }
+
   function goNext() {
-    if (step < categories.length - 1) setStep((s) => s + 1);
+    if (!currentCategory || !selections[currentCategory.id]) return;
+    advanceFrom(step, skipped, selections);
   }
 
   function goBack() {
@@ -238,18 +347,46 @@ export function VotePage() {
   }
 
   function finish() {
-    if (!allSelected) return;
-    setPhase('done');
+    if (!ballotResolved && availableContestants.length > 0) return;
+    // Mark any still-open empty categories as skipped.
+    const nextSkipped = new Set(skipped);
+    for (const category of categories) {
+      if (!selections[category.id]) nextSkipped.add(category.id);
+    }
+    setSkipped(nextSkipped);
+    finishBallot();
   }
+
+  // If the current category has no one left, skip it automatically.
+  useEffect(() => {
+    if (phase !== 'voting' || !currentCategory || saving) return;
+    if (availableContestants.length > 0) return;
+    if (selections[currentCategory.id]) return;
+    if (skipped.has(currentCategory.id)) return;
+
+    const nextSkipped = new Set(skipped);
+    nextSkipped.add(currentCategory.id);
+    setSkipped(nextSkipped);
+    advanceFrom(step, nextSkipped, selections);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to empty availability
+  }, [
+    phase,
+    currentCategory?.id,
+    availableContestants.length,
+    saving,
+    skipped,
+    selections,
+    step,
+  ]);
 
   async function changeVotes() {
     if (!bundle?.contest.isOpen) {
       setPhase('closed');
       return;
     }
-    // Start over from category 1 with a blank ballot so every contestant
-    // is selectable again (aside from live exclusive winners).
+    clearBallotComplete(ballotId);
     setSelections({});
+    setSkipped(new Set());
     setStep(0);
     setPhase('voting');
     setError(null);
@@ -327,10 +464,11 @@ export function VotePage() {
             const contestant = contestants.find(
               (c) => c.id === selections[category.id],
             );
+            const wasSkipped = skipped.has(category.id) && !contestant;
             return (
               <li key={category.id}>
                 <span>{category.name}</span>
-                <strong>{contestant?.name ?? '—'}</strong>
+                <strong>{wasSkipped ? 'Skipped' : contestant?.name ?? '—'}</strong>
               </li>
             );
           })}
@@ -353,15 +491,21 @@ export function VotePage() {
     );
   }
 
+  const isLastStep = step >= categories.length - 1;
+  const hasSelection = Boolean(currentCategory && selections[currentCategory.id]);
+  const noContestantsLeft = availableContestants.length === 0;
+  const allowSkip = categories.length > contestants.length;
+
   return (
     <main className="page vote-page">
       <header className="vote-header">
         <p className="eyebrow">{bundle?.contest.name}</p>
         <h1 className="brand">Cast your votes</h1>
         <p className="lede">
-          Each costume can only win one category. If someone is leading an earlier
-          award, they drop out of the later ones — on your ballot and on the live
-          board.
+          Each costume can only win one category.
+          {allowSkip
+            ? ' You can skip a category if you want — and once everyone has been picked, the rest are skipped for you.'
+            : ' Once a costume is picked, it can’t be chosen again on your ballot.'}
         </p>
       </header>
 
@@ -374,7 +518,9 @@ export function VotePage() {
                 ? 'progress-dot active'
                 : selections[category.id]
                   ? 'progress-dot filled'
-                  : 'progress-dot'
+                  : skipped.has(category.id)
+                    ? 'progress-dot skipped'
+                    : 'progress-dot'
             }
           />
         ))}
@@ -388,8 +534,10 @@ export function VotePage() {
             {saving && !saveFlash && <span className="muted"> · Saving…</span>}
           </p>
           <h2>{currentCategory.name}</h2>
-          {availableContestants.length === 0 ? (
-            <p className="muted">No contestants left for this category.</p>
+          {noContestantsLeft ? (
+            <p className="muted">
+              No contestants left for this category — skipping…
+            </p>
           ) : (
             <ul className="choice-list">
               {availableContestants.map((contestant) => {
@@ -434,25 +582,37 @@ export function VotePage() {
         >
           Back
         </button>
-        {step < categories.length - 1 ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={goNext}
-            disabled={!currentCategory || !selections[currentCategory.id] || saving}
-          >
-            Next category
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={finish}
-            disabled={!allSelected || saving}
-          >
-            Finish
-          </button>
-        )}
+        <div className="actions">
+          {allowSkip && !noContestantsLeft && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={skipCategory}
+              disabled={saving}
+            >
+              Skip
+            </button>
+          )}
+          {isLastStep || ballotResolved ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={finish}
+              disabled={saving || (!hasSelection && !noContestantsLeft && !ballotResolved)}
+            >
+              Finish
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={goNext}
+              disabled={!hasSelection || saving}
+            >
+              Next category
+            </button>
+          )}
+        </div>
       </div>
     </main>
   );

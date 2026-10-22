@@ -25,35 +25,42 @@ export function ResultsPage() {
   }, []);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribeVotes = () => {};
+    let unsubscribeContest = () => {};
     let cancelled = false;
+    let subscribedContestId: string | null = null;
 
-    async function load() {
-      try {
-        const store = getDataStore();
-        const active = await store.getActiveContest();
-        if (cancelled) return;
-        if (!active) {
-          setLoading(false);
-          return;
-        }
-        setBundle(active);
-        unsubscribe = store.subscribeVotes(active.contest.id, (nextVotes) => {
-          if (!cancelled) setVotes(nextVotes);
-        });
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load results");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    function watchVotes(contestId: string) {
+      if (subscribedContestId === contestId) return;
+      unsubscribeVotes();
+      subscribedContestId = contestId;
+      unsubscribeVotes = getDataStore().subscribeVotes(contestId, (nextVotes) => {
+        if (!cancelled) setVotes(nextVotes);
+      });
     }
 
-    void load();
+    try {
+      unsubscribeContest = getDataStore().subscribeActiveContest((active) => {
+        if (cancelled) return;
+        setBundle(active);
+        setLoading(false);
+        if (active) {
+          watchVotes(active.contest.id);
+        } else {
+          unsubscribeVotes();
+          subscribedContestId = null;
+          setVotes([]);
+        }
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load results");
+      setLoading(false);
+    }
+
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeVotes();
+      unsubscribeContest();
     };
   }, []);
 
@@ -147,7 +154,7 @@ export function ResultsPage() {
                 className={winner ? "winner-spotlight has-winner" : "winner-spotlight empty"}
                 key={winner?.contestantId ?? "none"}
               >
-                {winner && <WinnerConfetti />}
+                {winner && !bundle.contest.isOpen && <WinnerConfetti />}
                 <div className="winner-spotlight-content">
                   <span className="winner-spotlight-label">{winner ? "Winning" : "Waiting for votes"}</span>
                   <p className="winner-spotlight-name">{winner?.name ?? "—"}</p>

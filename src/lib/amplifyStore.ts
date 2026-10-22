@@ -78,6 +78,40 @@ export const amplifyStore = {
     };
   },
 
+  subscribeActiveContest(
+    listener: (bundle: ContestBundle | null) => void,
+  ): () => void {
+    let active = true;
+
+    const refresh = async () => {
+      try {
+        const bundle = await amplifyStore.getActiveContest();
+        if (active) listener(bundle);
+      } catch {
+        if (active) listener(null);
+      }
+    };
+
+    void refresh();
+
+    const subs = [
+      client.models.Contest.onCreate().subscribe({ next: () => void refresh() }),
+      client.models.Contest.onUpdate().subscribe({ next: () => void refresh() }),
+      client.models.Contest.onDelete().subscribe({ next: () => void refresh() }),
+      client.models.Category.onCreate().subscribe({ next: () => void refresh() }),
+      client.models.Category.onUpdate().subscribe({ next: () => void refresh() }),
+      client.models.Category.onDelete().subscribe({ next: () => void refresh() }),
+      client.models.Contestant.onCreate().subscribe({ next: () => void refresh() }),
+      client.models.Contestant.onUpdate().subscribe({ next: () => void refresh() }),
+      client.models.Contestant.onDelete().subscribe({ next: () => void refresh() }),
+    ];
+
+    return () => {
+      active = false;
+      for (const sub of subs) sub.unsubscribe();
+    };
+  },
+
   async getActiveContest(): Promise<ContestBundle | null> {
     const { data, errors } = await client.models.Contest.list();
     if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));

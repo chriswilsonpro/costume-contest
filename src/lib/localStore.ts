@@ -20,8 +20,10 @@ type Db = {
 };
 
 type VoteListener = (votes: Vote[]) => void;
+type ContestListener = (bundle: ContestBundle | null) => void;
 
-const listeners = new Set<VoteListener>();
+const voteListeners = new Set<VoteListener>();
+const contestListeners = new Set<ContestListener>();
 
 function emptyDb(): Db {
   return {
@@ -43,47 +45,61 @@ function readDb(): Db {
   }
 }
 
-function writeDb(db: Db): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-  for (const listener of listeners) {
+function sortByOrder<T extends { sortOrder: number }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+function activeBundleFromDb(db: Db): ContestBundle | null {
+  const contest = db.contests[0] ?? null;
+  if (!contest) return null;
+  return {
+    contest,
+    categories: sortByOrder(
+      db.categories.filter((c) => c.contestId === contest.id),
+    ),
+    contestants: sortByOrder(
+      db.contestants.filter((c) => c.contestId === contest.id),
+    ),
+  };
+}
+
+function notifyListeners(db: Db): void {
+  for (const listener of voteListeners) {
     listener(db.votes);
   }
+  const bundle = activeBundleFromDb(db);
+  for (const listener of contestListeners) {
+    listener(bundle);
+  }
+}
+
+function writeDb(db: Db): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  notifyListeners(db);
 }
 
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY) return;
-    const votes = readDb().votes;
-    for (const listener of listeners) {
-      listener(votes);
-    }
+    notifyListeners(readDb());
   });
-}
-
-function sortByOrder<T extends { sortOrder: number }>(items: T[]): T[] {
-  return [...items].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export const localStore = {
   subscribeVotes(listener: VoteListener): () => void {
-    listeners.add(listener);
+    voteListeners.add(listener);
     listener(readDb().votes);
-    return () => listeners.delete(listener);
+    return () => voteListeners.delete(listener);
+  },
+
+  subscribeActiveContest(listener: ContestListener): () => void {
+    contestListeners.add(listener);
+    listener(activeBundleFromDb(readDb()));
+    return () => contestListeners.delete(listener);
   },
 
   async getActiveContest(): Promise<ContestBundle | null> {
-    const db = readDb();
-    const contest = db.contests[0] ?? null;
-    if (!contest) return null;
-    return {
-      contest,
-      categories: sortByOrder(
-        db.categories.filter((c) => c.contestId === contest.id),
-      ),
-      contestants: sortByOrder(
-        db.contestants.filter((c) => c.contestId === contest.id),
-      ),
-    };
+    return activeBundleFromDb(readDb());
   },
 
   async createContest(name: string): Promise<ContestBundle> {
