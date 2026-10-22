@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ensureBallotId } from '../lib/ballotCookie';
 import { getDataStore } from '../lib/dataStore';
-import { winnersOfEarlierCategories } from '../lib/rankings';
-import type { ContestBundle, Vote } from '../lib/types';
+import type { ContestBundle } from '../lib/types';
 
 type Phase = 'loading' | 'voting' | 'done' | 'closed' | 'empty';
 
@@ -44,59 +43,22 @@ function firstOpenStep(
   return index >= 0 ? index : Math.max(categories.length - 1, 0);
 }
 
-/** Drop picks that violate the one-win-per-contestant rule given live totals. */
-function pruneIneligibleSelections(
-  categories: ContestBundle['categories'],
-  contestants: ContestBundle['contestants'],
-  liveVotes: Vote[],
-  selections: Record<string, string>,
-): Record<string, string> {
-  const ordered = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
-  const next = { ...selections };
-  let changed = false;
-
-  for (const category of ordered) {
-    const selectedId = next[category.id];
-    if (!selectedId) continue;
-    const blocked = winnersOfEarlierCategories(
-      categories,
-      contestants,
-      liveVotes,
-      category.id,
-    );
-    if (blocked.has(selectedId)) {
-      delete next[category.id];
-      changed = true;
-    }
-  }
-
-  return changed ? next : selections;
-}
-
+/** Contestants still free on this ballot (ignores other voters). */
 function availableForCategory(
   categoryId: string,
   contestants: ContestBundle['contestants'],
-  categories: ContestBundle['categories'],
   selections: Record<string, string>,
-  liveVotes: Vote[],
 ): ContestBundle['contestants'] {
-  const blocked = winnersOfEarlierCategories(
-    categories,
-    contestants,
-    liveVotes,
-    categoryId,
-  );
   const taken = new Set<string>();
   for (const [id, contestantId] of Object.entries(selections)) {
     if (id === categoryId) continue;
     taken.add(contestantId);
   }
-  return contestants.filter((c) => !taken.has(c.id) && !blocked.has(c.id));
+  return contestants.filter((c) => !taken.has(c.id));
 }
 
 export function VotePage() {
   const [bundle, setBundle] = useState<ContestBundle | null>(null);
-  const [liveVotes, setLiveVotes] = useState<Vote[]>([]);
   const [phase, setPhase] = useState<Phase>('loading');
   const [step, setStep] = useState(0);
   const [selections, setSelections] = useState<Record<string, string>>({});
@@ -108,7 +70,6 @@ export function VotePage() {
 
   useEffect(() => {
     let cancelled = false;
-    let unsubscribe = () => {};
 
     async function load() {
       try {
@@ -122,9 +83,6 @@ export function VotePage() {
         }
 
         setBundle(active);
-        unsubscribe = store.subscribeVotes(active.contest.id, (votes) => {
-          if (!cancelled) setLiveVotes(votes);
-        });
 
         const existingVotes = await store.getVotesForBallot(ballotId);
         if (cancelled) return;
@@ -172,49 +130,12 @@ export function VotePage() {
     void load();
     return () => {
       cancelled = true;
-      unsubscribe();
     };
   }, [ballotId]);
-
-  // Clear ballot picks that became illegal as live leaders shift.
-  useEffect(() => {
-    if (!bundle || phase !== 'voting') return;
-    const pruned = pruneIneligibleSelections(
-      bundle.categories,
-      bundle.contestants,
-      liveVotes,
-      selections,
-    );
-    if (pruned === selections) return;
-    setSelections(pruned);
-    void (async () => {
-      try {
-        await getDataStore().saveBallotVotes({
-          ballotId,
-          contestId: bundle.contest.id,
-          selections: pruned,
-        });
-      } catch {
-        // Keep UI state; next user action can retry.
-      }
-    })();
-  }, [bundle, liveVotes, phase, selections, ballotId]);
 
   const categories = bundle?.categories ?? [];
   const contestants = bundle?.contestants ?? [];
   const currentCategory = categories[step];
-
-  const blockedByEarlierWin = useMemo(() => {
-    if (!currentCategory || !bundle) {
-      return new Map<string, { categoryId: string; categoryName: string }>();
-    }
-    return winnersOfEarlierCategories(
-      bundle.categories,
-      bundle.contestants,
-      liveVotes,
-      currentCategory.id,
-    );
-  }, [bundle, liveVotes, currentCategory]);
 
   const takenContestantIds = useMemo(() => {
     const taken = new Set<string>();
@@ -226,11 +147,7 @@ export function VotePage() {
   }, [selections, currentCategory]);
 
   const availableContestants = contestants.filter(
-    (c) => !takenContestantIds.has(c.id) && !blockedByEarlierWin.has(c.id),
-  );
-
-  const blockedContestants = contestants.filter((c) =>
-    blockedByEarlierWin.has(c.id),
+    (c) => !takenContestantIds.has(c.id),
   );
 
   const ballotResolved =
@@ -279,9 +196,7 @@ export function VotePage() {
       const available = availableForCategory(
         category.id,
         contestants,
-        categories,
         nextSelections,
-        liveVotes,
       );
       if (available.length === 0) {
         autoSkipped.add(category.id);
@@ -303,7 +218,7 @@ export function VotePage() {
 
   function selectContestant(contestantId: string) {
     if (!currentCategory || !bundle) return;
-    if (blockedByEarlierWin.has(contestantId)) return;
+    if (takenContestantIds.has(contestantId)) return;
 
     const next: Record<string, string> = {
       ...selections,
@@ -556,17 +471,6 @@ export function VotePage() {
                 );
               })}
             </ul>
-          )}
-          {blockedContestants.length > 0 && (
-            <p className="muted blocked-note">
-              Already winning earlier:{' '}
-              {blockedContestants
-                .map((c) => {
-                  const win = blockedByEarlierWin.get(c.id);
-                  return `${c.name} (${win?.categoryName ?? 'earlier'})`;
-                })
-                .join(', ')}
-            </p>
           )}
         </section>
       )}
