@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ResultsNightScene } from "../components/ResultsNightScene";
 import { VoteQrLauncher } from "../components/VoteQrLauncher";
 import { WinnerConfetti } from "../components/WinnerConfetti";
 import { getDataStore } from "../lib/dataStore";
@@ -76,27 +77,35 @@ export function ResultsPage() {
 
   if (loading) {
     return (
-      <main className="page">
-        <p className="muted">Loading live results…</p>
+      <main className="page results-page">
+        <ResultsNightScene />
+        <div className="results-foreground">
+          <p className="muted">Loading live results…</p>
+        </div>
       </main>
     );
   }
 
   if (!bundle) {
     return (
-      <main className="page">
-        <h1 className="brand">Live results</h1>
-        <p className="lede">No contest yet.</p>
-        {error && <p className="error">{error}</p>}
-        <Link className="text-link" to="/admin">
-          Set up the contest
-        </Link>
+      <main className="page results-page">
+        <ResultsNightScene />
+        <div className="results-foreground">
+          <h1 className="brand">Live results</h1>
+          <p className="lede">No contest yet.</p>
+          {error && <p className="error">{error}</p>}
+          <Link className="text-link" to="/admin">
+            Set up the contest
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
     <main className="page results-page">
+      <ResultsNightScene />
+      <div className="results-foreground">
       <header className="results-header">
         <div>
           <p className="eyebrow live-pill">Live</p>
@@ -219,6 +228,7 @@ export function ResultsPage() {
             </section>
           );
         })}
+      </div>
       </div>
     </main>
   );

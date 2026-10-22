@@ -36,6 +36,11 @@ body,
   min-height: 100%;
 }
 
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -122,6 +127,279 @@ input {
   width: calc(100% - 2rem);
   max-width: none;
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.results-foreground {
+  position: relative;
+  z-index: 1;
+}
+
+.results-night-scene {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #030109;
+}
+
+.night-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 78% 16%, rgba(120, 0, 200, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 18% 28%, rgba(40, 20, 80, 0.25), transparent 50%),
+    linear-gradient(180deg, #05020c 0%, #0a0516 38%, #0e071c 65%, #030109 100%);
+}
+
+.night-stars {
+  position: absolute;
+  inset: 0 0 38% 0;
+}
+
+.night-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #f4eefc;
+  box-shadow: 0 0 6px rgba(244, 238, 252, 0.85);
+  animation-name: star-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.night-moon {
+  position: absolute;
+  top: 6%;
+  right: 10%;
+  width: clamp(90px, 14vw, 160px);
+  height: clamp(90px, 14vw, 160px);
+}
+
+.moon-glow {
+  position: absolute;
+  inset: -35%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(230, 210, 255, 0.45) 0%,
+    rgba(161, 0, 255, 0.12) 40%,
+    transparent 70%
+  );
+  animation: moon-pulse 8s ease-in-out infinite;
+}
+
+.moon-disk {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f7f0ff, #d8c6f0 55%, #b9a0d8 100%);
+  box-shadow:
+    inset -10px -6px 0 rgba(90, 60, 130, 0.18),
+    0 0 40px rgba(220, 200, 255, 0.35);
+  overflow: hidden;
+}
+
+.moon-crater {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(120, 90, 160, 0.22);
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+.moon-crater.c1 {
+  width: 22%;
+  height: 22%;
+  top: 28%;
+  left: 22%;
+}
+
+.moon-crater.c2 {
+  width: 14%;
+  height: 14%;
+  top: 48%;
+  left: 55%;
+}
+
+.moon-crater.c3 {
+  width: 10%;
+  height: 10%;
+  top: 62%;
+  left: 32%;
+}
+
+@keyframes moon-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.night-clouds {
+  position: absolute;
+  inset: 0 0 40% 0;
+  overflow: hidden;
+}
+
+.night-cloud {
+  position: absolute;
+  left: -40%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(120, 100, 170, 0.72) 0%,
+    rgba(55, 40, 100, 0.32) 55%,
+    transparent 70%
+  );
+  filter: blur(8px);
+  animation-name: cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(160vw);
+  }
+}
+
+.night-cemetery {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: min(42vh, 420px);
+  z-index: 1;
+}
+
+.pumpkin-eye {
+  filter: drop-shadow(0 0 4px #ffb000) drop-shadow(0 0 10px #ff6a00);
+  animation: pumpkin-glow 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.night-pumpkins > g:nth-child(2n) .pumpkin-eye {
+  animation-delay: -0.8s;
+}
+
+.night-pumpkins > g:nth-child(3n) .pumpkin-eye {
+  animation-delay: -1.5s;
+}
+
+@keyframes pumpkin-glow {
+  0%,
+  100% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 3px #ffb000) drop-shadow(0 0 8px #ff6a00);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px #ffe566) drop-shadow(0 0 14px #ff8a00);
+  }
+}
+
+.night-fog {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 28%;
+  bottom: 0;
+  z-index: 2;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(200, 185, 230, 0.28) 0%,
+    rgba(120, 100, 170, 0.12) 45%,
+    transparent 70%
+  );
+  filter: blur(18px);
+  animation-name: fog-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.fog-back {
+  bottom: 12%;
+  height: 34%;
+  opacity: 0.55;
+  animation-duration: 22s;
+}
+
+.fog-mid {
+  bottom: 4%;
+  height: 30%;
+  opacity: 0.7;
+  animation-duration: 16s;
+  animation-delay: -6s;
+}
+
+.fog-front {
+  bottom: -4%;
+  height: 24%;
+  opacity: 0.85;
+  animation-duration: 12s;
+  animation-delay: -3s;
+}
+
+@keyframes fog-drift {
+  0%,
+  100% {
+    transform: translateX(-4%) translateY(0);
+  }
+  50% {
+    transform: translateX(4%) translateY(-6px);
+  }
+}
+
+.night-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background:
+    radial-gradient(ellipse at center, transparent 35%, rgba(2, 0, 6, 0.72) 100%),
+    linear-gradient(180deg, transparent 48%, rgba(2, 0, 6, 0.65) 100%);
+}
+
+.results-page .result-card {
+  background: rgba(18, 8, 32, 0.88);
+}
+
+.results-page .results-header {
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75);
+}
+
+@media (max-width: 640px) {
+  .night-moon {
+    right: 6%;
+    top: 4%;
+  }
+
+  .night-cemetery {
+    height: min(36vh, 320px);
+  }
 }
 
 @keyframes rise {
