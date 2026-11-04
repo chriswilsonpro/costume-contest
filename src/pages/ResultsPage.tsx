@@ -226,65 +226,84 @@ function ClassicResults({
   );
 }
 
-function RoundLeaderboard({
+const RESULT_BAR_TONES = ["tone-a", "tone-b", "tone-c", "tone-d"] as const;
+
+function RoundResultCards({
   ranked,
-  advancingIds,
   contestants,
+  advancingIds,
+  highlightWinners = false,
+  showConfetti = false,
 }: {
   ranked: RoundRankedEntry[];
-  advancingIds?: Set<string>;
   contestants: ContestBundle["contestants"];
+  advancingIds?: Set<string>;
+  highlightWinners?: boolean;
+  showConfetti?: boolean;
 }) {
-  const barMax = Math.max(...ranked.map((e) => e.count), 1);
-  const stableRows = [...ranked].sort((a, b) => a.name.localeCompare(b.name));
+  const totalVotes = ranked.reduce((sum, entry) => sum + entry.count, 0);
+  const leadCount = ranked[0]?.count ?? 0;
 
   return (
-    <ol
-      className="rank-list rank-list-animated round-rank-list"
-      style={{ height: Math.max(ranked.length, 1) * ROW_HEIGHT }}
-    >
-      {stableRows.map((entry) => {
-        const index = ranked.findIndex(
-          (row) => row.contestantId === entry.contestantId,
-        );
-        const place = index + 1;
-        const width = Math.round((entry.count / barMax) * 100);
-        const advancing = advancingIds?.has(entry.contestantId);
+    <ul className="result-card-grid">
+      {ranked.map((entry, index) => {
+        const percent =
+          totalVotes > 0 ? Math.round((entry.count / totalVotes) * 100) : 0;
         const contestant = contestants.find((c) => c.id === entry.contestantId);
+        const isLeader =
+          highlightWinners && entry.count > 0 && entry.count === leadCount;
+        const advancing = advancingIds?.has(entry.contestantId);
+        const tone = RESULT_BAR_TONES[index % RESULT_BAR_TONES.length];
+        const classes = [
+          "result-entry-card",
+          isLeader ? "is-winner" : "",
+          advancing && !isLeader ? "is-advancing" : "",
+          tone,
+        ]
+          .filter(Boolean)
+          .join(" ");
 
         return (
-          <li
-            key={entry.contestantId}
-            className={advancing ? "rank-row advancing" : "rank-row"}
-            style={{
-              transform: `translateY(${index * ROW_HEIGHT}px)`,
-              zIndex: 2,
-            }}
-          >
-            <div className="rank-meta">
-              <span className="rank-place">{place}</span>
-              {contestant && (
+          <li key={entry.contestantId} className={classes}>
+            {isLeader && showConfetti && <WinnerConfetti />}
+            <div className="result-entry-media">
+              {isLeader && (
+                <span className="result-winner-badge">
+                  <span className="result-winner-cup" aria-hidden="true" />
+                  Winner
+                </span>
+              )}
+              {!isLeader && advancing && (
+                <span className="result-advance-badge">Advancing</span>
+              )}
+              {contestant ? (
                 <ContestantAvatar
                   name={contestant.name}
                   imageKey={contestant.imageKey}
-                  size="sm"
+                  size="xl"
                 />
+              ) : (
+                <span className="contestant-avatar avatar-xl avatar-fallback">
+                  ?
+                </span>
               )}
-              <span className="rank-name">
-                {entry.name}
-                {advancing && (
-                  <span className="advancing-badge"> Advancing</span>
-                )}
-              </span>
-              <span className="rank-count">{entry.count}</span>
             </div>
-            <div className="rank-bar" aria-hidden="true">
-              <span style={{ width: `${width}%` }} />
+            <div className="result-entry-footer">
+              <p className="result-entry-name">{entry.name}</p>
+              <div className="result-entry-stats">
+                <span className="result-entry-percent">{percent}%</span>
+                <span className="result-entry-votes">
+                  {entry.count} vote{entry.count === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="result-entry-bar" aria-hidden="true">
+                <span style={{ width: `${percent}%` }} />
+              </div>
             </div>
           </li>
         );
       })}
-    </ol>
+    </ul>
   );
 }
 
@@ -344,7 +363,7 @@ function RoundResults({
     round === 2 && roundClosed && finalResult.winners.length > 0;
 
   return (
-    <>
+    <div className="round-results">
       <header className="results-header">
         <div>
           <p className="eyebrow live-pill">
@@ -369,36 +388,14 @@ function RoundResults({
       <VoteQrLauncher />
 
       {showFinal ? (
-        <section className="panel final-winner-panel">
-          {finalResult.winners.map((winner) => {
-            const contestant = bundle.contestants.find(
-              (c) => c.id === winner.contestantId,
-            );
-            return (
-              <div
-                className="winner-spotlight has-winner final-spotlight"
-                key={winner.contestantId}
-              >
-                <WinnerConfetti />
-                <div className="winner-spotlight-content">
-                  {contestant && (
-                    <ContestantAvatar
-                      name={contestant.name}
-                      imageKey={contestant.imageKey}
-                      size="xl"
-                    />
-                  )}
-                  <span className="winner-spotlight-label">
-                    {finalResult.isCoWinner ? "Co-winner" : "Winner"}
-                  </span>
-                  <p className="winner-spotlight-name">{winner.name}</p>
-                  <span className="winner-spotlight-count">
-                    {winner.count} final vote{winner.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        <section className="panel round-panel">
+          <h2>Final results</h2>
+          <RoundResultCards
+            ranked={round2Ranked}
+            contestants={bundle.contestants}
+            highlightWinners
+            showConfetti
+          />
           {finalResult.usedRound1Tiebreak && (
             <p className="muted tiebreak-note">
               {finalResult.isCoWinner
@@ -408,34 +405,20 @@ function RoundResults({
           )}
         </section>
       ) : round === 2 ? (
-        <section className="panel">
+        <section className="panel round-panel">
           <h2>Finalists</h2>
           <p className="muted hint">Counts reset for Round 2.</p>
-          <div className="finalist-cards">
-            {round2Ranked.map((entry) => {
-              const contestant = bundle.contestants.find(
-                (c) => c.id === entry.contestantId,
-              );
-              return (
-                <div className="finalist-card" key={entry.contestantId}>
-                  {contestant && (
-                    <ContestantAvatar
-                      name={contestant.name}
-                      imageKey={contestant.imageKey}
-                      size="lg"
-                    />
-                  )}
-                  <strong>{entry.name}</strong>
-                  <span>
-                    {entry.count} vote{entry.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {round2Ranked.length === 0 ? (
+            <p className="muted">No finalists yet.</p>
+          ) : (
+            <RoundResultCards
+              ranked={round2Ranked}
+              contestants={bundle.contestants}
+            />
+          )}
         </section>
       ) : (
-        <section className="panel">
+        <section className="panel round-panel">
           <h2>Round 1 leaderboard</h2>
           {finalistsInfo.hasCutoffTie && (
             <p className="muted hint">
@@ -445,19 +428,19 @@ function RoundResults({
           {round1Ranked.length === 0 ? (
             <p className="muted">No contestants yet.</p>
           ) : (
-            <RoundLeaderboard
+            <RoundResultCards
               ranked={round1Ranked}
+              contestants={bundle.contestants}
               advancingIds={
                 roundClosed || finalistsInfo.finalists.length > 0
                   ? advancingIds
                   : undefined
               }
-              contestants={bundle.contestants}
             />
           )}
         </section>
       )}
-    </>
+    </div>
   );
 }
 
