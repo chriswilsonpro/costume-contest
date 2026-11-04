@@ -73,10 +73,11 @@ function ClassicResults({
         </Link>
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error results-header-error">{error}</p>}
 
       <VoteQrLauncher />
 
+      <div className="results-body">
       <div className="results-grid">
         {rankings.map(({ category, ranked, winnerId }) => {
           const winner = ranked.find((entry) => entry.contestantId === winnerId);
@@ -222,6 +223,7 @@ function ClassicResults({
           );
         })}
       </div>
+      </div>
     </>
   );
 }
@@ -363,7 +365,7 @@ function RoundResults({
     round === 2 && roundClosed && finalResult.winners.length > 0;
 
   return (
-    <div className="round-results">
+    <>
       <header className="results-header">
         <div>
           <p className="eyebrow live-pill">
@@ -383,64 +385,72 @@ function RoundResults({
         </Link>
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error results-header-error">{error}</p>}
 
       <VoteQrLauncher />
 
-      {showFinal ? (
-        <section className="panel round-panel">
-          <h2>Final results</h2>
-          <RoundResultCards
-            ranked={round2Ranked}
-            contestants={bundle.contestants}
-            highlightWinners
-            showConfetti
-          />
-          {finalResult.usedRound1Tiebreak && (
-            <p className="muted tiebreak-note">
-              {finalResult.isCoWinner
-                ? "Round 2 and Round 1 votes tied — co-winners."
-                : "Round 2 tied; decided by Round 1 vote totals."}
-            </p>
-          )}
-        </section>
-      ) : round === 2 ? (
-        <section className="panel round-panel">
-          <h2>Finalists</h2>
-          <p className="muted hint">Counts reset for Round 2.</p>
-          {round2Ranked.length === 0 ? (
-            <p className="muted">No finalists yet.</p>
-          ) : (
+      <section className="results-body">
+        {showFinal ? (
+          <>
+            <div className="results-body-intro">
+              <h2>Final results</h2>
+            </div>
             <RoundResultCards
               ranked={round2Ranked}
               contestants={bundle.contestants}
+              highlightWinners
+              showConfetti
             />
-          )}
-        </section>
-      ) : (
-        <section className="panel round-panel">
-          <h2>Round 1 leaderboard</h2>
-          {finalistsInfo.hasCutoffTie && (
-            <p className="muted hint">
-              Tie at 3rd — more than three costumes are advancing.
-            </p>
-          )}
-          {round1Ranked.length === 0 ? (
-            <p className="muted">No contestants yet.</p>
-          ) : (
-            <RoundResultCards
-              ranked={round1Ranked}
-              contestants={bundle.contestants}
-              advancingIds={
-                roundClosed || finalistsInfo.finalists.length > 0
-                  ? advancingIds
-                  : undefined
-              }
-            />
-          )}
-        </section>
-      )}
-    </div>
+            {finalResult.usedRound1Tiebreak && (
+              <p className="muted tiebreak-note">
+                {finalResult.isCoWinner
+                  ? "Round 2 and Round 1 votes tied — co-winners."
+                  : "Round 2 tied; decided by Round 1 vote totals."}
+              </p>
+            )}
+          </>
+        ) : round === 2 ? (
+          <>
+            <div className="results-body-intro">
+              <h2>Finalists</h2>
+              <p className="muted hint">Counts reset for Round 2.</p>
+            </div>
+            {round2Ranked.length === 0 ? (
+              <p className="muted">No finalists yet.</p>
+            ) : (
+              <RoundResultCards
+                ranked={round2Ranked}
+                contestants={bundle.contestants}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <div className="results-body-intro">
+              <h2>Round 1 leaderboard</h2>
+              {finalistsInfo.hasCutoffTie && (
+                <p className="muted hint">
+                  Tie at 3rd — more than three costumes are advancing.
+                </p>
+              )}
+            </div>
+            {round1Ranked.length === 0 ? (
+              <p className="muted">No contestants yet.</p>
+            ) : (
+              <RoundResultCards
+                ranked={round1Ranked}
+                contestants={bundle.contestants}
+                advancingIds={
+                  roundClosed || finalistsInfo.finalists.length > 0
+                    ? advancingIds
+                    : undefined
+                }
+              />
+            )}
+          </>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -517,8 +527,10 @@ export function ResultsPage() {
     );
   }
 
+  const sceneBg = bundle.contest.resultsBackground !== "plain";
+
   return (
-    <main className="page results-page">
+    <main className={sceneBg ? "page results-page scene-bg" : "page results-page"}>
       <ResultsBackground
         kind={bundle.contest.resultsBackground}
         imageKey={bundle.contest.resultsBackgroundKey}

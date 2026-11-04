@@ -45,6 +45,9 @@ function normalizeContest(raw: Contest): Contest {
     votingSystem: raw.votingSystem ?? 'classic',
     currentRound: raw.currentRound ?? 1,
     finalistIds: raw.finalistIds ?? [],
+    themeColor: raw.themeColor ?? 'dark',
+    titleFont: raw.titleFont ?? 'serif',
+    bodyFont: raw.bodyFont ?? 'sans',
     resultsBackground: raw.resultsBackground ?? 'halloween',
     resultsBackgroundKey: raw.resultsBackgroundKey ?? null,
   };
@@ -175,6 +178,9 @@ export const localStore = {
       votingSystem: 'classic',
       currentRound: 1,
       finalistIds: [],
+      themeColor: 'dark',
+      titleFont: 'serif',
+      bodyFont: 'sans',
       resultsBackground: 'halloween',
       resultsBackgroundKey: null,
       createdAt: now,
@@ -207,6 +213,9 @@ export const localStore = {
         | 'votingSystem'
         | 'currentRound'
         | 'finalistIds'
+        | 'themeColor'
+        | 'titleFont'
+        | 'bodyFont'
         | 'resultsBackground'
         | 'resultsBackgroundKey'
       >
@@ -436,6 +445,9 @@ export type ContestPatch = Partial<
     | 'votingSystem'
     | 'currentRound'
     | 'finalistIds'
+    | 'themeColor'
+    | 'titleFont'
+    | 'bodyFont'
     | 'resultsBackground'
     | 'resultsBackgroundKey'
   >

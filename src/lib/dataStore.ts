@@ -19,6 +19,9 @@ export type ContestPatch = Partial<
     | 'votingSystem'
     | 'currentRound'
     | 'finalistIds'
+    | 'themeColor'
+    | 'titleFont'
+    | 'bodyFont'
     | 'resultsBackground'
     | 'resultsBackgroundKey'
   >

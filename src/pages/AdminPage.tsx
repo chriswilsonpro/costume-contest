@@ -19,10 +19,16 @@ import {
 import type {
   ContestBundle,
   ResultsBackground,
+  ThemeColor,
+  ThemeFont,
   Vote,
   VotingSystem,
 } from '../lib/types';
-import { RESULTS_BACKGROUND_PRESETS } from '../lib/types';
+import {
+  RESULTS_BACKGROUND_PRESETS,
+  THEME_COLOR_PRESETS,
+  THEME_FONT_OPTIONS,
+} from '../lib/types';
 
 type PendingDelete = { id: string; name: string };
 
@@ -38,6 +44,13 @@ function BackgroundPreview({
     return (
       <div className="bg-preview custom">
         <img src={url} alt="" />
+      </div>
+    );
+  }
+  if (kind === 'plain') {
+    return (
+      <div className="bg-preview plain" aria-hidden="true">
+        <span>Plain</span>
       </div>
     );
   }
@@ -403,18 +416,30 @@ export function AdminPage() {
     }
   }
 
-  async function setResultsBackground(kind: ResultsBackground) {
+  async function patchTheme(
+    patch: Partial<{
+      themeColor: ThemeColor;
+      titleFont: ThemeFont;
+      bodyFont: ThemeFont;
+      resultsBackground: ResultsBackground;
+      resultsBackgroundKey: string | null;
+    }>,
+  ) {
     if (!bundle) return;
     setError(null);
     try {
-      const updated = await getDataStore().updateContest(bundle.contest.id, {
-        resultsBackground: kind,
-        ...(kind === 'halloween' ? { resultsBackgroundKey: null } : {}),
-      });
+      const updated = await getDataStore().updateContest(bundle.contest.id, patch);
       setBundle({ ...bundle, contest: updated });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update background');
+      setError(err instanceof Error ? err.message : 'Could not update theme');
     }
+  }
+
+  async function setResultsBackground(kind: ResultsBackground) {
+    await patchTheme({
+      resultsBackground: kind,
+      ...(kind !== 'custom' ? { resultsBackgroundKey: null } : {}),
+    });
   }
 
   async function handleBackgroundUpload(fileList: FileList | null) {
@@ -769,7 +794,83 @@ export function AdminPage() {
           )}
 
           <section className="panel">
-            <h2>Results background</h2>
+            <h2>Theme</h2>
+            <p className="muted hint">
+              Applies to the voting and results pages. Admin keeps its own look.
+            </p>
+
+            <h3 className="theme-subheader">Colors</h3>
+            <div className="theme-swatches">
+              {THEME_COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={
+                    bundle.contest.themeColor === preset.id
+                      ? 'theme-swatch selected'
+                      : 'theme-swatch'
+                  }
+                  onClick={() => void patchTheme({ themeColor: preset.id })}
+                >
+                  <span
+                    className="theme-swatch-chip"
+                    style={{ background: preset.swatch }}
+                    aria-hidden="true"
+                  />
+                  <span>{preset.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <h3 className="theme-subheader">Title font</h3>
+            <div className="theme-font-row">
+              {THEME_FONT_OPTIONS.map((option) => (
+                <button
+                  key={`title-${option.id}`}
+                  type="button"
+                  className={
+                    bundle.contest.titleFont === option.id
+                      ? 'theme-font-btn selected'
+                      : 'theme-font-btn'
+                  }
+                  onClick={() => void patchTheme({ titleFont: option.id })}
+                >
+                  <span
+                    className="theme-font-sample"
+                    style={{ fontFamily: option.sampleFamily }}
+                  >
+                    Aa
+                  </span>
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <h3 className="theme-subheader">Body font</h3>
+            <div className="theme-font-row">
+              {THEME_FONT_OPTIONS.map((option) => (
+                <button
+                  key={`body-${option.id}`}
+                  type="button"
+                  className={
+                    bundle.contest.bodyFont === option.id
+                      ? 'theme-font-btn selected'
+                      : 'theme-font-btn'
+                  }
+                  onClick={() => void patchTheme({ bodyFont: option.id })}
+                >
+                  <span
+                    className="theme-font-sample"
+                    style={{ fontFamily: option.sampleFamily }}
+                  >
+                    Aa
+                  </span>
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <h3 className="theme-subheader">Results background</h3>
             <div className="bg-options">
               {RESULTS_BACKGROUND_PRESETS.map((preset) => (
                 <button
@@ -792,7 +893,9 @@ export function AdminPage() {
             </div>
             <label className="file-upload">
               <span className="btn btn-secondary">
-                {uploadingId === 'background' ? 'Uploading…' : 'Upload custom image'}
+                {uploadingId === 'background'
+                  ? 'Uploading…'
+                  : 'Upload custom image'}
               </span>
               <input
                 type="file"
@@ -804,6 +907,27 @@ export function AdminPage() {
                 }}
               />
             </label>
+
+            <h3 className="theme-subheader">Preview</h3>
+            <div
+              className="theme-preview theme-root"
+              data-color={bundle.contest.themeColor}
+              data-title-font={bundle.contest.titleFont}
+              data-body-font={bundle.contest.bodyFont}
+            >
+              <p className="theme-preview-eyebrow">Live sample</p>
+              <h4 className="theme-preview-title">Costume Contest</h4>
+              <p className="theme-preview-body">
+                Title and body fonts update here so you can compare before voters
+                see them.
+              </p>
+              <button type="button" className="choice theme-preview-choice">
+                Sample contestant
+              </button>
+              <div className="theme-preview-bar" aria-hidden="true">
+                <span style={{ width: '62%' }} />
+              </div>
+            </div>
           </section>
 
           <section className="panel">

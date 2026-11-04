@@ -1,5 +1,7 @@
 export type VotingSystem = 'classic' | 'multiRound';
-export type ResultsBackground = 'halloween' | 'custom';
+export type ResultsBackground = 'plain' | 'halloween' | 'custom';
+export type ThemeColor = 'dark' | 'light' | 'pumpkin' | 'neon';
+export type ThemeFont = 'serif' | 'sans' | 'display' | 'mono';
 
 export type Contest = {
   id: string;
@@ -8,6 +10,9 @@ export type Contest = {
   votingSystem: VotingSystem;
   currentRound: number;
   finalistIds: string[];
+  themeColor: ThemeColor;
+  titleFont: ThemeFont;
+  bodyFont: ThemeFont;
   resultsBackground: ResultsBackground;
   resultsBackgroundKey?: string | null;
   createdAt?: string;
@@ -62,10 +67,33 @@ export const DEFAULT_CATEGORIES = [
   'Best Surprise',
 ] as const;
 
+export const THEME_COLOR_PRESETS: {
+  id: ThemeColor;
+  label: string;
+  swatch: string;
+}[] = [
+  { id: 'dark', label: 'Dark', swatch: 'linear-gradient(135deg, #241038, #a100ff)' },
+  { id: 'light', label: 'Light', swatch: 'linear-gradient(135deg, #f7f2ff, #a100ff)' },
+  { id: 'pumpkin', label: 'Pumpkin', swatch: 'linear-gradient(135deg, #1a0c05, #ff7a18)' },
+  { id: 'neon', label: 'Neon', swatch: 'linear-gradient(135deg, #050510, #ff2bd6 50%, #2ef2ff)' },
+];
+
+export const THEME_FONT_OPTIONS: {
+  id: ThemeFont;
+  label: string;
+  sampleFamily: string;
+}[] = [
+  { id: 'serif', label: 'Serif', sampleFamily: '"Fraunces", Georgia, serif' },
+  { id: 'sans', label: 'Sans-serif', sampleFamily: '"Manrope", system-ui, sans-serif' },
+  { id: 'display', label: 'Display', sampleFamily: '"Bungee", cursive' },
+  { id: 'mono', label: 'Mono', sampleFamily: '"Space Mono", ui-monospace, monospace' },
+];
+
 export const RESULTS_BACKGROUND_PRESETS: {
   id: ResultsBackground;
   label: string;
 }[] = [
+  { id: 'plain', label: 'Plain' },
   { id: 'halloween', label: 'Halloween night' },
   { id: 'custom', label: 'Custom image' },
 ];

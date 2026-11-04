@@ -11,6 +11,8 @@ import {
   type Contestant,
   type ImageKind,
   type ResultsBackground,
+  type ThemeColor,
+  type ThemeFont,
   type Vote,
   type VotingSystem,
 } from './types';
@@ -28,7 +30,18 @@ function asVotingSystem(value: string | null | undefined): VotingSystem {
 function asResultsBackground(
   value: string | null | undefined,
 ): ResultsBackground {
-  return value === 'custom' ? 'custom' : 'halloween';
+  if (value === 'plain' || value === 'custom') return value;
+  return 'halloween';
+}
+
+function asThemeColor(value: string | null | undefined): ThemeColor {
+  if (value === 'light' || value === 'pumpkin' || value === 'neon') return value;
+  return 'dark';
+}
+
+function asThemeFont(value: string | null | undefined): ThemeFont {
+  if (value === 'sans' || value === 'display' || value === 'mono') return value;
+  return 'serif';
 }
 
 function mapContest(row: {
@@ -38,6 +51,9 @@ function mapContest(row: {
   votingSystem?: string | null;
   currentRound?: number | null;
   finalistIds?: (string | null)[] | null;
+  themeColor?: string | null;
+  titleFont?: string | null;
+  bodyFont?: string | null;
   resultsBackground?: string | null;
   resultsBackgroundKey?: string | null;
   createdAt?: string | null;
@@ -52,6 +68,9 @@ function mapContest(row: {
     finalistIds: (row.finalistIds ?? []).filter(
       (id): id is string => typeof id === 'string',
     ),
+    themeColor: asThemeColor(row.themeColor),
+    titleFont: asThemeFont(row.titleFont),
+    bodyFont: asThemeFont(row.bodyFont ?? 'sans'),
     resultsBackground: asResultsBackground(row.resultsBackground),
     resultsBackgroundKey: row.resultsBackgroundKey ?? null,
     createdAt: row.createdAt ?? undefined,
@@ -207,6 +226,9 @@ export const amplifyStore = {
       votingSystem: 'classic',
       currentRound: 1,
       finalistIds: [],
+      themeColor: 'dark',
+      titleFont: 'serif',
+      bodyFont: 'sans',
       resultsBackground: 'halloween',
     });
     if (errors?.length || !contestRow) {
@@ -250,6 +272,9 @@ export const amplifyStore = {
         | 'votingSystem'
         | 'currentRound'
         | 'finalistIds'
+        | 'themeColor'
+        | 'titleFont'
+        | 'bodyFont'
         | 'resultsBackground'
         | 'resultsBackgroundKey'
       >

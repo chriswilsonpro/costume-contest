@@ -10,6 +10,10 @@ type Props = {
 export function ResultsBackground({ kind, imageKey }: Props) {
   const customUrl = useImageUrl(kind === 'custom' ? imageKey : null);
 
+  if (kind === 'plain') {
+    return <div className="results-plain-bg" aria-hidden="true" />;
+  }
+
   if (kind === 'custom' && customUrl) {
     return (
       <div className="results-custom-bg" aria-hidden="true">
