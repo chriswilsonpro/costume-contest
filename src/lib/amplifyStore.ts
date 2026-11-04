@@ -1,5 +1,7 @@
 import { generateClient } from 'aws-amplify/data';
+import { getUrl, remove, uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
+import { createId } from './id';
 import {
   DEFAULT_CATEGORIES,
   type Ballot,
@@ -7,13 +9,88 @@ import {
   type Contest,
   type ContestBundle,
   type Contestant,
+  type ImageKind,
+  type ResultsBackground,
   type Vote,
+  type VotingSystem,
 } from './types';
 
 const client = generateClient<Schema>({ authMode: 'apiKey' });
 
 function sortByOrder<T extends { sortOrder?: number | null }>(items: T[]): T[] {
   return [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+function asVotingSystem(value: string | null | undefined): VotingSystem {
+  return value === 'multiRound' ? 'multiRound' : 'classic';
+}
+
+function asResultsBackground(
+  value: string | null | undefined,
+): ResultsBackground {
+  return value === 'custom' ? 'custom' : 'halloween';
+}
+
+function mapContest(row: {
+  id: string;
+  name: string;
+  isOpen?: boolean | null;
+  votingSystem?: string | null;
+  currentRound?: number | null;
+  finalistIds?: (string | null)[] | null;
+  resultsBackground?: string | null;
+  resultsBackgroundKey?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}): Contest {
+  return {
+    id: row.id,
+    name: row.name,
+    isOpen: row.isOpen ?? true,
+    votingSystem: asVotingSystem(row.votingSystem),
+    currentRound: row.currentRound ?? 1,
+    finalistIds: (row.finalistIds ?? []).filter(
+      (id): id is string => typeof id === 'string',
+    ),
+    resultsBackground: asResultsBackground(row.resultsBackground),
+    resultsBackgroundKey: row.resultsBackgroundKey ?? null,
+    createdAt: row.createdAt ?? undefined,
+    updatedAt: row.updatedAt ?? undefined,
+  };
+}
+
+function mapVote(v: {
+  id: string;
+  ballotId: string;
+  contestId: string;
+  categoryId?: string | null;
+  contestantId: string;
+  round?: number | null;
+}): Vote {
+  return {
+    id: v.id,
+    ballotId: v.ballotId,
+    contestId: v.contestId,
+    categoryId: v.categoryId ?? null,
+    contestantId: v.contestantId,
+    round: v.round ?? null,
+  };
+}
+
+function mapContestant(c: {
+  id: string;
+  contestId: string;
+  name: string;
+  sortOrder?: number | null;
+  imageKey?: string | null;
+}): Contestant {
+  return {
+    id: c.id,
+    contestId: c.contestId,
+    name: c.name,
+    sortOrder: c.sortOrder ?? 0,
+    imageKey: c.imageKey ?? null,
+  };
 }
 
 async function listAllCategories(contestId: string): Promise<Category[]> {
@@ -36,14 +113,7 @@ async function listAllContestants(contestId: string): Promise<Contestant[]> {
     filter: { contestId: { eq: contestId } },
   });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-  return sortByOrder(
-    (data ?? []).map((c) => ({
-      id: c.id,
-      contestId: c.contestId,
-      name: c.name,
-      sortOrder: c.sortOrder ?? 0,
-    })),
-  );
+  return sortByOrder((data ?? []).map(mapContestant));
 }
 
 export const amplifyStore = {
@@ -118,14 +188,7 @@ export const amplifyStore = {
     const contestRow = data?.[0];
     if (!contestRow) return null;
 
-    const contest: Contest = {
-      id: contestRow.id,
-      name: contestRow.name,
-      isOpen: contestRow.isOpen ?? true,
-      createdAt: contestRow.createdAt ?? undefined,
-      updatedAt: contestRow.updatedAt ?? undefined,
-    };
-
+    const contest = mapContest(contestRow);
     const [categories, contestants] = await Promise.all([
       listAllCategories(contest.id),
       listAllContestants(contest.id),
@@ -141,6 +204,10 @@ export const amplifyStore = {
     const { data: contestRow, errors } = await client.models.Contest.create({
       name,
       isOpen: true,
+      votingSystem: 'classic',
+      currentRound: 1,
+      finalistIds: [],
+      resultsBackground: 'halloween',
     });
     if (errors?.length || !contestRow) {
       throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Create failed');
@@ -154,7 +221,9 @@ export const amplifyStore = {
         sortOrder: index,
       });
       if (catErrors?.length || !cat) {
-        throw new Error(catErrors?.map((e) => e.message).join(', ') ?? 'Category create failed');
+        throw new Error(
+          catErrors?.map((e) => e.message).join(', ') ?? 'Category create failed',
+        );
       }
       categories.push({
         id: cat.id,
@@ -165,11 +234,7 @@ export const amplifyStore = {
     }
 
     return {
-      contest: {
-        id: contestRow.id,
-        name: contestRow.name,
-        isOpen: contestRow.isOpen ?? true,
-      },
+      contest: mapContest(contestRow),
       categories,
       contestants: [],
     };
@@ -177,17 +242,27 @@ export const amplifyStore = {
 
   async updateContest(
     id: string,
-    patch: Partial<Pick<Contest, 'name' | 'isOpen'>>,
+    patch: Partial<
+      Pick<
+        Contest,
+        | 'name'
+        | 'isOpen'
+        | 'votingSystem'
+        | 'currentRound'
+        | 'finalistIds'
+        | 'resultsBackground'
+        | 'resultsBackgroundKey'
+      >
+    >,
   ): Promise<Contest> {
-    const { data, errors } = await client.models.Contest.update({ id, ...patch });
+    const { data, errors } = await client.models.Contest.update({
+      id,
+      ...patch,
+    });
     if (errors?.length || !data) {
       throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Update failed');
     }
-    return {
-      id: data.id,
-      name: data.name,
-      isOpen: data.isOpen ?? true,
-    };
+    return mapContest(data);
   },
 
   async addContestant(contestId: string, name: string): Promise<Contestant> {
@@ -200,15 +275,18 @@ export const amplifyStore = {
     if (errors?.length || !data) {
       throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Create failed');
     }
-    return {
-      id: data.id,
-      contestId: data.contestId,
-      name: data.name,
-      sortOrder: data.sortOrder ?? existing.length,
-    };
+    return mapContestant(data);
   },
 
   async removeContestant(id: string): Promise<void> {
+    const { data: contestant } = await client.models.Contestant.get({ id });
+    if (contestant?.imageKey) {
+      try {
+        await amplifyStore.deleteImage(contestant.imageKey);
+      } catch {
+        // Continue deleting the contestant even if the file is already gone.
+      }
+    }
     const { data: votes } = await client.models.Vote.list({
       filter: { contestantId: { eq: id } },
     });
@@ -237,7 +315,7 @@ export const amplifyStore = {
 
   async updateContestant(
     id: string,
-    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder' | 'imageKey'>>,
   ): Promise<Contestant> {
     const payload = {
       id,
@@ -248,12 +326,7 @@ export const amplifyStore = {
     if (errors?.length || !data) {
       throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Update failed');
     }
-    return {
-      id: data.id,
-      contestId: data.contestId,
-      name: data.name,
-      sortOrder: data.sortOrder ?? 0,
-    };
+    return mapContestant(data);
   },
 
   async getBallot(ballotId: string): Promise<Ballot | null> {
@@ -273,13 +346,7 @@ export const amplifyStore = {
       filter: { ballotId: { eq: ballotId } },
     });
     if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-    return (data ?? []).map((v) => ({
-      id: v.id,
-      ballotId: v.ballotId,
-      contestId: v.contestId,
-      categoryId: v.categoryId,
-      contestantId: v.contestantId,
-    }));
+    return (data ?? []).map(mapVote);
   },
 
   async listVotes(contestId: string): Promise<Vote[]> {
@@ -287,13 +354,31 @@ export const amplifyStore = {
       filter: { contestId: { eq: contestId } },
     });
     if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-    return (data ?? []).map((v) => ({
-      id: v.id,
-      ballotId: v.ballotId,
-      contestId: v.contestId,
-      categoryId: v.categoryId,
-      contestantId: v.contestantId,
-    }));
+    return (data ?? []).map(mapVote);
+  },
+
+  async clearVotes(contestId: string): Promise<void> {
+    const { data: votes, errors: voteErrors } = await client.models.Vote.list({
+      filter: { contestId: { eq: contestId } },
+    });
+    if (voteErrors?.length) {
+      throw new Error(voteErrors.map((e) => e.message).join(', '));
+    }
+    await Promise.all(
+      (votes ?? []).map((vote) => client.models.Vote.delete({ id: vote.id })),
+    );
+
+    const { data: ballots, errors: ballotErrors } = await client.models.Ballot.list({
+      filter: { contestId: { eq: contestId } },
+    });
+    if (ballotErrors?.length) {
+      throw new Error(ballotErrors.map((e) => e.message).join(', '));
+    }
+    await Promise.all(
+      (ballots ?? []).map((ballot) =>
+        client.models.Ballot.delete({ id: ballot.id }),
+      ),
+    );
   },
 
   async saveBallotVotes(input: {
@@ -321,7 +406,9 @@ export const amplifyStore = {
         submittedAt: now,
       });
       if (errors?.length || !data) {
-        throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Ballot create failed');
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Ballot create failed',
+        );
       }
       ballot = {
         id: data.id,
@@ -334,7 +421,9 @@ export const amplifyStore = {
         submittedAt: ballot.submittedAt ?? now,
       });
       if (errors?.length || !data) {
-        throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Ballot update failed');
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Ballot update failed',
+        );
       }
       ballot = {
         id: data.id,
@@ -345,8 +434,11 @@ export const amplifyStore = {
     }
 
     const existingVotes = await this.getVotesForBallot(input.ballotId);
+    const classicVotes = existingVotes.filter(
+      (vote) => vote.round == null || vote.round === 0,
+    );
     await Promise.all(
-      existingVotes.map((vote) => client.models.Vote.delete({ id: vote.id })),
+      classicVotes.map((vote) => client.models.Vote.delete({ id: vote.id })),
     );
 
     const votes: Vote[] = [];
@@ -358,36 +450,174 @@ export const amplifyStore = {
         contestantId,
       });
       if (errors?.length || !data) {
-        throw new Error(errors?.map((e) => e.message).join(', ') ?? 'Vote create failed');
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Vote create failed',
+        );
       }
-      votes.push({
-        id: data.id,
-        ballotId: data.ballotId,
-        contestId: data.contestId,
-        categoryId: data.categoryId,
-        contestantId: data.contestantId,
-      });
+      votes.push(mapVote(data));
     }
 
     return { ballot, votes };
   },
 
+  async saveRoundVote(input: {
+    ballotId: string;
+    contestId: string;
+    round: number;
+    contestantId: string | null;
+  }): Promise<{ ballot: Ballot; votes: Vote[] }> {
+    const bundle = await this.getActiveContest();
+    if (!bundle || bundle.contest.id !== input.contestId) {
+      throw new Error('Contest not found');
+    }
+    const { contest } = bundle;
+    if (!contest.isOpen) throw new Error('Voting is closed');
+    if (contest.votingSystem !== 'multiRound') {
+      throw new Error('Contest is not multi-round');
+    }
+    if (contest.currentRound !== input.round) {
+      throw new Error(`Round ${input.round} is not active`);
+    }
+    if (input.round === 2 && input.contestantId) {
+      if (!contest.finalistIds.includes(input.contestantId)) {
+        throw new Error('Contestant is not a finalist');
+      }
+    }
+
+    const now = new Date().toISOString();
+    let ballot = await this.getBallot(input.ballotId);
+    if (!ballot) {
+      const { data, errors } = await client.models.Ballot.create({
+        id: input.ballotId,
+        contestId: input.contestId,
+        submittedAt: now,
+      });
+      if (errors?.length || !data) {
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Ballot create failed',
+        );
+      }
+      ballot = {
+        id: data.id,
+        contestId: data.contestId,
+        submittedAt: data.submittedAt,
+      };
+    } else {
+      const { data, errors } = await client.models.Ballot.update({
+        id: input.ballotId,
+        submittedAt: ballot.submittedAt ?? now,
+      });
+      if (errors?.length || !data) {
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Ballot update failed',
+        );
+      }
+      ballot = {
+        id: data.id,
+        contestId: data.contestId,
+        submittedAt: data.submittedAt,
+        updatedAt: data.updatedAt ?? undefined,
+      };
+    }
+
+    const existingVotes = await this.getVotesForBallot(input.ballotId);
+    const roundVotes = existingVotes.filter((vote) => vote.round === input.round);
+    await Promise.all(
+      roundVotes.map((vote) => client.models.Vote.delete({ id: vote.id })),
+    );
+
+    const votes: Vote[] = [];
+    if (input.contestantId) {
+      const { data, errors } = await client.models.Vote.create({
+        ballotId: input.ballotId,
+        contestId: input.contestId,
+        contestantId: input.contestantId,
+        round: input.round,
+      });
+      if (errors?.length || !data) {
+        throw new Error(
+          errors?.map((e) => e.message).join(', ') ?? 'Vote create failed',
+        );
+      }
+      votes.push(mapVote(data));
+    }
+
+    return { ballot, votes };
+  },
+
+  async uploadImage(kind: ImageKind, file: File): Promise<string> {
+    const folder = kind === 'contestant' ? 'contestant-images' : 'backgrounds';
+    const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+    const key = `${folder}/${createId()}-${safeName}`;
+    await uploadData({
+      path: key,
+      data: file,
+      options: {
+        contentType: file.type || 'application/octet-stream',
+      },
+    }).result;
+    return key;
+  },
+
+  async resolveImageUrl(key: string): Promise<string> {
+    const result = await getUrl({
+      path: key,
+      options: {
+        expiresIn: 60 * 60 * 24,
+      },
+    });
+    return result.url.toString();
+  },
+
+  async deleteImage(key: string): Promise<void> {
+    await remove({ path: key });
+  },
+
   async resetEverything(): Promise<void> {
     const deleteAll = async (
-      list: () => Promise<{ data?: { id: string }[] | null; errors?: { message: string }[] }>,
-      remove: (id: string) => Promise<{ errors?: { message: string }[] }>,
+      list: () => Promise<{
+        data?: { id: string }[] | null;
+        errors?: { message: string }[];
+      }>,
+      removeRow: (id: string) => Promise<{ errors?: { message: string }[] }>,
     ) => {
       const { data, errors } = await list();
       if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
       await Promise.all(
         (data ?? []).map(async (row) => {
-          const result = await remove(row.id);
+          const result = await removeRow(row.id);
           if (result.errors?.length) {
             throw new Error(result.errors.map((e) => e.message).join(', '));
           }
         }),
       );
     };
+
+    const contestants = await client.models.Contestant.list();
+    await Promise.all(
+      (contestants.data ?? []).map(async (row) => {
+        if (row.imageKey) {
+          try {
+            await amplifyStore.deleteImage(row.imageKey);
+          } catch {
+            // Ignore missing files.
+          }
+        }
+      }),
+    );
+
+    const contests = await client.models.Contest.list();
+    await Promise.all(
+      (contests.data ?? []).map(async (row) => {
+        if (row.resultsBackgroundKey) {
+          try {
+            await amplifyStore.deleteImage(row.resultsBackgroundKey);
+          } catch {
+            // Ignore missing files.
+          }
+        }
+      }),
+    );
 
     await deleteAll(
       () => client.models.Vote.list(),

@@ -6,10 +6,14 @@ import {
   type Contest,
   type ContestBundle,
   type Contestant,
+  type ImageKind,
+  type ResultsBackground,
   type Vote,
+  type VotingSystem,
 } from './types';
 
 const STORAGE_KEY = 'costume_contest_db_v1';
+const MEDIA_PREFIX = 'costume_contest_media_';
 
 type Db = {
   contests: Contest[];
@@ -35,11 +39,24 @@ function emptyDb(): Db {
   };
 }
 
+function normalizeContest(raw: Contest): Contest {
+  return {
+    ...raw,
+    votingSystem: raw.votingSystem ?? 'classic',
+    currentRound: raw.currentRound ?? 1,
+    finalistIds: raw.finalistIds ?? [],
+    resultsBackground: raw.resultsBackground ?? 'halloween',
+    resultsBackgroundKey: raw.resultsBackgroundKey ?? null,
+  };
+}
+
 function readDb(): Db {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyDb();
-    return { ...emptyDb(), ...JSON.parse(raw) } as Db;
+    const parsed = { ...emptyDb(), ...JSON.parse(raw) } as Db;
+    parsed.contests = (parsed.contests ?? []).map(normalizeContest);
+    return parsed;
   } catch {
     return emptyDb();
   }
@@ -53,7 +70,7 @@ function activeBundleFromDb(db: Db): ContestBundle | null {
   const contest = db.contests[0] ?? null;
   if (!contest) return null;
   return {
-    contest,
+    contest: normalizeContest(contest),
     categories: sortByOrder(
       db.categories.filter((c) => c.contestId === contest.id),
     ),
@@ -78,9 +95,50 @@ function writeDb(db: Db): void {
   notifyListeners(db);
 }
 
+function mediaStorageKey(key: string): string {
+  return `${MEDIA_PREFIX}${key}`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Could not read file'));
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function ensureBallot(
+  db: Db,
+  ballotId: string,
+  contestId: string,
+): Promise<Ballot> {
+  const now = new Date().toISOString();
+  let ballot = db.ballots.find((b) => b.id === ballotId);
+  if (!ballot) {
+    ballot = {
+      id: ballotId,
+      contestId,
+      submittedAt: now,
+      updatedAt: now,
+    };
+    db.ballots.push(ballot);
+  } else {
+    if (ballot.contestId !== contestId) {
+      throw new Error('Ballot belongs to a different contest');
+    }
+    ballot.submittedAt = ballot.submittedAt ?? now;
+    ballot.updatedAt = now;
+  }
+  return ballot;
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
-    if (event.key !== STORAGE_KEY) return;
+    if (event.key !== STORAGE_KEY && !event.key?.startsWith(MEDIA_PREFIX)) return;
     notifyListeners(readDb());
   });
 }
@@ -114,6 +172,11 @@ export const localStore = {
       id: createId(),
       name,
       isOpen: true,
+      votingSystem: 'classic',
+      currentRound: 1,
+      finalistIds: [],
+      resultsBackground: 'halloween',
+      resultsBackgroundKey: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -136,16 +199,27 @@ export const localStore = {
 
   async updateContest(
     id: string,
-    patch: Partial<Pick<Contest, 'name' | 'isOpen'>>,
+    patch: Partial<
+      Pick<
+        Contest,
+        | 'name'
+        | 'isOpen'
+        | 'votingSystem'
+        | 'currentRound'
+        | 'finalistIds'
+        | 'resultsBackground'
+        | 'resultsBackgroundKey'
+      >
+    >,
   ): Promise<Contest> {
     const db = readDb();
     const index = db.contests.findIndex((c) => c.id === id);
     if (index < 0) throw new Error('Contest not found');
-    db.contests[index] = {
+    db.contests[index] = normalizeContest({
       ...db.contests[index],
       ...patch,
       updatedAt: new Date().toISOString(),
-    };
+    });
     writeDb(db);
     return db.contests[index];
   },
@@ -158,6 +232,7 @@ export const localStore = {
       contestId,
       name: name.trim(),
       sortOrder: existing.length,
+      imageKey: null,
     };
     db.contestants.push(contestant);
     writeDb(db);
@@ -166,12 +241,22 @@ export const localStore = {
 
   async removeContestant(id: string): Promise<void> {
     const db = readDb();
+    const contestant = db.contestants.find((c) => c.id === id);
+    if (contestant?.imageKey) {
+      localStorage.removeItem(mediaStorageKey(contestant.imageKey));
+    }
     db.contestants = db.contestants.filter((c) => c.id !== id);
     db.votes = db.votes.filter((v) => v.contestantId !== id);
     writeDb(db);
   },
 
   async resetEverything(): Promise<void> {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(MEDIA_PREFIX)) keysToRemove.push(key);
+    }
+    for (const key of keysToRemove) localStorage.removeItem(key);
     writeDb(emptyDb());
   },
 
@@ -189,7 +274,7 @@ export const localStore = {
 
   async updateContestant(
     id: string,
-    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder' | 'imageKey'>>,
   ): Promise<Contestant> {
     const db = readDb();
     const index = db.contestants.findIndex((c) => c.id === id);
@@ -216,6 +301,13 @@ export const localStore = {
     return readDb().votes.filter((v) => v.contestId === contestId);
   },
 
+  async clearVotes(contestId: string): Promise<void> {
+    const db = readDb();
+    db.votes = db.votes.filter((v) => v.contestId !== contestId);
+    db.ballots = db.ballots.filter((b) => b.contestId !== contestId);
+    writeDb(db);
+  },
+
   async saveBallotVotes(input: {
     ballotId: string;
     contestId: string;
@@ -233,25 +325,14 @@ export const localStore = {
       throw new Error('Each contestant can only be selected once');
     }
 
-    const now = new Date().toISOString();
-    let ballot = db.ballots.find((b) => b.id === input.ballotId);
-    if (!ballot) {
-      ballot = {
-        id: input.ballotId,
-        contestId: input.contestId,
-        submittedAt: now,
-        updatedAt: now,
-      };
-      db.ballots.push(ballot);
-    } else {
-      ballot.submittedAt = ballot.submittedAt ?? now;
-      ballot.updatedAt = now;
-      if (ballot.contestId !== input.contestId) {
-        throw new Error('Ballot belongs to a different contest');
-      }
-    }
+    const ballot = await ensureBallot(db, input.ballotId, input.contestId);
 
-    db.votes = db.votes.filter((v) => v.ballotId !== input.ballotId);
+    // Keep multi-round votes; only replace classic category votes for this ballot.
+    db.votes = db.votes.filter(
+      (v) =>
+        v.ballotId !== input.ballotId ||
+        (v.round != null && v.round > 0),
+    );
 
     const votes: Vote[] = categoryIds.map((categoryId) => ({
       id: createId(),
@@ -259,10 +340,105 @@ export const localStore = {
       contestId: input.contestId,
       categoryId,
       contestantId: input.selections[categoryId],
+      round: null,
     }));
 
     db.votes.push(...votes);
     writeDb(db);
     return { ballot, votes };
   },
+
+  async saveRoundVote(input: {
+    ballotId: string;
+    contestId: string;
+    round: number;
+    contestantId: string | null;
+  }): Promise<{ ballot: Ballot; votes: Vote[] }> {
+    const db = readDb();
+    const contest = normalizeContest(
+      db.contests.find((c) => c.id === input.contestId) ??
+        (() => {
+          throw new Error('Contest not found');
+        })(),
+    );
+    if (!contest.isOpen) throw new Error('Voting is closed');
+    if (contest.votingSystem !== 'multiRound') {
+      throw new Error('Contest is not multi-round');
+    }
+    if (contest.currentRound !== input.round) {
+      throw new Error(`Round ${input.round} is not active`);
+    }
+    if (input.round === 2 && input.contestantId) {
+      if (!contest.finalistIds.includes(input.contestantId)) {
+        throw new Error('Contestant is not a finalist');
+      }
+    }
+
+    const ballot = await ensureBallot(db, input.ballotId, input.contestId);
+
+    db.votes = db.votes.filter(
+      (v) => !(v.ballotId === input.ballotId && v.round === input.round),
+    );
+
+    const votes: Vote[] = [];
+    if (input.contestantId) {
+      const vote: Vote = {
+        id: createId(),
+        ballotId: input.ballotId,
+        contestId: input.contestId,
+        categoryId: null,
+        contestantId: input.contestantId,
+        round: input.round,
+      };
+      db.votes.push(vote);
+      votes.push(vote);
+    }
+
+    writeDb(db);
+    return { ballot, votes };
+  },
+
+  async uploadImage(kind: ImageKind, file: File): Promise<string> {
+    const folder = kind === 'contestant' ? 'contestant-images' : 'backgrounds';
+    const key = `local:${folder}/${createId()}-${file.name}`;
+    const dataUrl = await fileToDataUrl(file);
+    try {
+      localStorage.setItem(mediaStorageKey(key), dataUrl);
+    } catch {
+      throw new Error(
+        'Image too large for local storage. Use a smaller file or Amplify mode.',
+      );
+    }
+    return key;
+  },
+
+  async resolveImageUrl(key: string): Promise<string> {
+    if (key.startsWith('local:')) {
+      const dataUrl = localStorage.getItem(mediaStorageKey(key));
+      if (!dataUrl) throw new Error('Image not found');
+      return dataUrl;
+    }
+    throw new Error('Image not found in local storage');
+  },
+
+  async deleteImage(key: string): Promise<void> {
+    if (key.startsWith('local:')) {
+      localStorage.removeItem(mediaStorageKey(key));
+    }
+  },
 };
+
+export type ContestPatch = Partial<
+  Pick<
+    Contest,
+    | 'name'
+    | 'isOpen'
+    | 'votingSystem'
+    | 'currentRound'
+    | 'finalistIds'
+    | 'resultsBackground'
+    | 'resultsBackgroundKey'
+  >
+>;
+
+export type { VotingSystem, ResultsBackground };

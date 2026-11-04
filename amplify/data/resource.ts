@@ -5,6 +5,11 @@ const schema = a.schema({
     .model({
       name: a.string().required(),
       isOpen: a.boolean().required().default(true),
+      votingSystem: a.enum(['classic', 'multiRound']),
+      currentRound: a.integer().default(1),
+      finalistIds: a.string().array(),
+      resultsBackground: a.enum(['halloween', 'custom']),
+      resultsBackgroundKey: a.string(),
       categories: a.hasMany('Category', 'contestId'),
       contestants: a.hasMany('Contestant', 'contestId'),
       ballots: a.hasMany('Ballot', 'contestId'),
@@ -28,6 +33,7 @@ const schema = a.schema({
       contest: a.belongsTo('Contest', 'contestId'),
       name: a.string().required(),
       sortOrder: a.integer().required(),
+      imageKey: a.string(),
       votes: a.hasMany('Vote', 'contestantId'),
     })
     .authorization((allow) => [allow.publicApiKey()]),
@@ -47,10 +53,11 @@ const schema = a.schema({
       ballot: a.belongsTo('Ballot', 'ballotId'),
       contestId: a.id().required(),
       contest: a.belongsTo('Contest', 'contestId'),
-      categoryId: a.id().required(),
+      categoryId: a.id(),
       category: a.belongsTo('Category', 'categoryId'),
       contestantId: a.id().required(),
       contestant: a.belongsTo('Contestant', 'contestantId'),
+      round: a.integer(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
 });

@@ -7,17 +7,28 @@ import type {
   Contest,
   ContestBundle,
   Contestant,
+  ImageKind,
   Vote,
 } from './types';
+
+export type ContestPatch = Partial<
+  Pick<
+    Contest,
+    | 'name'
+    | 'isOpen'
+    | 'votingSystem'
+    | 'currentRound'
+    | 'finalistIds'
+    | 'resultsBackground'
+    | 'resultsBackgroundKey'
+  >
+>;
 
 export type DataStore = {
   mode: 'local' | 'amplify';
   getActiveContest(): Promise<ContestBundle | null>;
   createContest(name: string): Promise<ContestBundle>;
-  updateContest(
-    id: string,
-    patch: Partial<Pick<Contest, 'name' | 'isOpen'>>,
-  ): Promise<Contest>;
+  updateContest(id: string, patch: ContestPatch): Promise<Contest>;
   addContestant(contestId: string, name: string): Promise<Contestant>;
   removeContestant(id: string): Promise<void>;
   resetEverything(): Promise<void>;
@@ -27,16 +38,26 @@ export type DataStore = {
   ): Promise<Category>;
   updateContestant(
     id: string,
-    patch: Partial<Pick<Contestant, 'name' | 'sortOrder'>>,
+    patch: Partial<Pick<Contestant, 'name' | 'sortOrder' | 'imageKey'>>,
   ): Promise<Contestant>;
   getBallot(ballotId: string): Promise<Ballot | null>;
   getVotesForBallot(ballotId: string): Promise<Vote[]>;
   listVotes(contestId: string): Promise<Vote[]>;
+  clearVotes(contestId: string): Promise<void>;
   saveBallotVotes(input: {
     ballotId: string;
     contestId: string;
     selections: Record<string, string>;
   }): Promise<{ ballot: Ballot; votes: Vote[] }>;
+  saveRoundVote(input: {
+    ballotId: string;
+    contestId: string;
+    round: number;
+    contestantId: string | null;
+  }): Promise<{ ballot: Ballot; votes: Vote[] }>;
+  uploadImage(kind: ImageKind, file: File): Promise<string>;
+  resolveImageUrl(key: string): Promise<string>;
+  deleteImage(key: string): Promise<void>;
   subscribeVotes(
     contestId: string,
     listener: (votes: Vote[]) => void,
@@ -75,7 +96,12 @@ function createStore(): DataStore {
       getBallot: (ballotId) => amplifyStore.getBallot(ballotId),
       getVotesForBallot: (ballotId) => amplifyStore.getVotesForBallot(ballotId),
       listVotes: (contestId) => amplifyStore.listVotes(contestId),
+      clearVotes: (contestId) => amplifyStore.clearVotes(contestId),
       saveBallotVotes: (input) => amplifyStore.saveBallotVotes(input),
+      saveRoundVote: (input) => amplifyStore.saveRoundVote(input),
+      uploadImage: (kind, file) => amplifyStore.uploadImage(kind, file),
+      resolveImageUrl: (key) => amplifyStore.resolveImageUrl(key),
+      deleteImage: (key) => amplifyStore.deleteImage(key),
       subscribeVotes: (contestId, listener) =>
         amplifyStore.subscribeVotes(contestId, listener),
       subscribeActiveContest: (listener) =>
@@ -97,7 +123,12 @@ function createStore(): DataStore {
     getBallot: (ballotId) => localStore.getBallot(ballotId),
     getVotesForBallot: (ballotId) => localStore.getVotesForBallot(ballotId),
     listVotes: (contestId) => localStore.listVotes(contestId),
+    clearVotes: (contestId) => localStore.clearVotes(contestId),
     saveBallotVotes: (input) => localStore.saveBallotVotes(input),
+    saveRoundVote: (input) => localStore.saveRoundVote(input),
+    uploadImage: (kind, file) => localStore.uploadImage(kind, file),
+    resolveImageUrl: (key) => localStore.resolveImageUrl(key),
+    deleteImage: (key) => localStore.deleteImage(key),
     subscribeVotes: (_contestId, listener) => localStore.subscribeVotes(listener),
     subscribeActiveContest: (listener) =>
       localStore.subscribeActiveContest(listener),

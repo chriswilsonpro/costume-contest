@@ -1,35 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ContestantAvatar } from '../components/ContestantAvatar';
 import { ensureBallotId } from '../lib/ballotCookie';
 import { getDataStore } from '../lib/dataStore';
-import type { ContestBundle } from '../lib/types';
+import type { ContestBundle, Contestant } from '../lib/types';
 
 type Phase = 'loading' | 'voting' | 'done' | 'closed' | 'empty';
 
 function buildSelectionsFromVotes(
-  votes: { categoryId: string; contestantId: string }[],
+  votes: { categoryId?: string | null; contestantId: string; round?: number | null }[],
 ): Record<string, string> {
   const map: Record<string, string> = {};
   for (const vote of votes) {
+    if (!vote.categoryId) continue;
+    if (vote.round != null && vote.round > 0) continue;
     map[vote.categoryId] = vote.contestantId;
   }
   return map;
 }
 
-function completeFlagKey(ballotId: string): string {
+function completeFlagKey(ballotId: string, round?: number): string {
+  if (round != null) return `costume_ballot_complete_${ballotId}_r${round}`;
   return `costume_ballot_complete_${ballotId}`;
 }
 
-function isBallotMarkedComplete(ballotId: string): boolean {
-  return localStorage.getItem(completeFlagKey(ballotId)) === '1';
+function isBallotMarkedComplete(ballotId: string, round?: number): boolean {
+  return localStorage.getItem(completeFlagKey(ballotId, round)) === '1';
 }
 
-function markBallotComplete(ballotId: string): void {
-  localStorage.setItem(completeFlagKey(ballotId), '1');
+function markBallotComplete(ballotId: string, round?: number): void {
+  localStorage.setItem(completeFlagKey(ballotId, round), '1');
 }
 
-function clearBallotComplete(ballotId: string): void {
-  localStorage.removeItem(completeFlagKey(ballotId));
+function clearBallotComplete(ballotId: string, round?: number): void {
+  localStorage.removeItem(completeFlagKey(ballotId, round));
 }
 
 function firstOpenStep(
@@ -57,84 +61,43 @@ function availableForCategory(
   return contestants.filter((c) => !taken.has(c.id));
 }
 
-export function VotePage() {
-  const [bundle, setBundle] = useState<ContestBundle | null>(null);
-  const [phase, setPhase] = useState<Phase>('loading');
-  const [step, setStep] = useState(0);
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
+function ClassicBallot({
+  bundle,
+  ballotId,
+  initialSelections,
+  initiallyComplete,
+}: {
+  bundle: ContestBundle;
+  ballotId: string;
+  initialSelections: Record<string, string>;
+  initiallyComplete: boolean;
+}) {
+  const [phase, setPhase] = useState<Phase>(
+    initiallyComplete
+      ? 'done'
+      : bundle.contest.isOpen
+        ? 'voting'
+        : 'closed',
+  );
+  const [step, setStep] = useState(() =>
+    firstOpenStep(bundle.categories, initialSelections, new Set()),
+  );
+  const [selections, setSelections] =
+    useState<Record<string, string>>(initialSelections);
+  const [skipped, setSkipped] = useState<Set<string>>(() => {
+    if (!initiallyComplete) return new Set();
+    return new Set(
+      bundle.categories
+        .filter((category) => !initialSelections[category.id])
+        .map((category) => category.id),
+    );
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
-  const ballotId = useMemo(() => ensureBallotId(), []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const store = getDataStore();
-        const active = await store.getActiveContest();
-        if (cancelled) return;
-
-        if (!active) {
-          setPhase('empty');
-          return;
-        }
-
-        setBundle(active);
-
-        const existingVotes = await store.getVotesForBallot(ballotId);
-        if (cancelled) return;
-
-        if (existingVotes.length > 0 || isBallotMarkedComplete(ballotId)) {
-          const map = buildSelectionsFromVotes(existingVotes);
-          setSelections(map);
-
-          if (isBallotMarkedComplete(ballotId)) {
-            // Mark unvoted categories as skipped for the summary.
-            const skippedIds = new Set(
-              active.categories
-                .filter((category) => !map[category.id])
-                .map((category) => category.id),
-            );
-            setSkipped(skippedIds);
-            setPhase('done');
-            return;
-          }
-
-          if (!active.contest.isOpen) {
-            setPhase('closed');
-            return;
-          }
-
-          setStep(firstOpenStep(active.categories, map, new Set()));
-          setPhase('voting');
-          return;
-        }
-
-        if (!active.contest.isOpen) {
-          setPhase('closed');
-          return;
-        }
-
-        setPhase('voting');
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load contest');
-          setPhase('empty');
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [ballotId]);
-
-  const categories = bundle?.categories ?? [];
-  const contestants = bundle?.contestants ?? [];
+  const categories = bundle.categories;
+  const contestants = bundle.contestants;
   const currentCategory = categories[step];
 
   const takenContestantIds = useMemo(() => {
@@ -158,7 +121,6 @@ export function VotePage() {
     );
 
   async function persistSelections(next: Record<string, string>) {
-    if (!bundle) return;
     setSaving(true);
     setError(null);
     try {
@@ -181,10 +143,11 @@ export function VotePage() {
     setPhase('done');
   }
 
-  function advanceFrom(stepIndex: number, nextSkipped: Set<string>, nextSelections: Record<string, string>) {
-    if (!bundle) return;
-
-    // Auto-skip remaining categories that have nobody left to pick.
+  function advanceFrom(
+    stepIndex: number,
+    nextSkipped: Set<string>,
+    nextSelections: Record<string, string>,
+  ) {
     let index = stepIndex + 1;
     const autoSkipped = new Set(nextSkipped);
     while (index < categories.length) {
@@ -217,7 +180,7 @@ export function VotePage() {
   }
 
   function selectContestant(contestantId: string) {
-    if (!currentCategory || !bundle) return;
+    if (!currentCategory) return;
     if (takenContestantIds.has(contestantId)) return;
 
     const next: Record<string, string> = {
@@ -239,7 +202,7 @@ export function VotePage() {
   }
 
   function skipCategory() {
-    if (!currentCategory || !bundle) return;
+    if (!currentCategory) return;
 
     const nextSelections = { ...selections };
     delete nextSelections[currentCategory.id];
@@ -263,7 +226,6 @@ export function VotePage() {
 
   function finish() {
     if (!ballotResolved && availableContestants.length > 0) return;
-    // Mark any still-open empty categories as skipped.
     const nextSkipped = new Set(skipped);
     for (const category of categories) {
       if (!selections[category.id]) nextSkipped.add(category.id);
@@ -272,7 +234,6 @@ export function VotePage() {
     finishBallot();
   }
 
-  // If the current category has no one left, skip it automatically.
   useEffect(() => {
     if (phase !== 'voting' || !currentCategory || saving) return;
     if (availableContestants.length > 0) return;
@@ -295,7 +256,7 @@ export function VotePage() {
   ]);
 
   async function changeVotes() {
-    if (!bundle?.contest.isOpen) {
+    if (!bundle.contest.isOpen) {
       setPhase('closed');
       return;
     }
@@ -316,28 +277,6 @@ export function VotePage() {
     }
   }
 
-  if (phase === 'loading') {
-    return (
-      <main className="page">
-        <p className="muted">Loading the contest…</p>
-      </main>
-    );
-  }
-
-  if (phase === 'empty') {
-    return (
-      <main className="page">
-        <h1 className="brand">Costume Contest</h1>
-        <p className="lede">No contest is set up yet.</p>
-        {error && <p className="error">{error}</p>}
-        <p className="muted">
-          Ask the host to open the <Link to="/admin">admin page</Link> and add
-          contestants.
-        </p>
-      </main>
-    );
-  }
-
   if (phase === 'closed') {
     return (
       <main className="page">
@@ -352,7 +291,16 @@ export function VotePage() {
               return (
                 <li key={category.id}>
                   <span>{category.name}</span>
-                  <strong>{contestant?.name ?? '—'}</strong>
+                  <strong className="summary-with-avatar">
+                    {contestant && (
+                      <ContestantAvatar
+                        name={contestant.name}
+                        imageKey={contestant.imageKey}
+                        size="sm"
+                      />
+                    )}
+                    {contestant?.name ?? '—'}
+                  </strong>
                 </li>
               );
             })}
@@ -383,13 +331,22 @@ export function VotePage() {
             return (
               <li key={category.id}>
                 <span>{category.name}</span>
-                <strong>{wasSkipped ? 'Skipped' : contestant?.name ?? '—'}</strong>
+                <strong className="summary-with-avatar">
+                  {contestant && (
+                    <ContestantAvatar
+                      name={contestant.name}
+                      imageKey={contestant.imageKey}
+                      size="sm"
+                    />
+                  )}
+                  {wasSkipped ? 'Skipped' : contestant?.name ?? '—'}
+                </strong>
               </li>
             );
           })}
         </ul>
         <div className="actions">
-          {bundle?.contest.isOpen && (
+          {bundle.contest.isOpen && (
             <button
               type="button"
               className="btn btn-secondary"
@@ -414,7 +371,7 @@ export function VotePage() {
   return (
     <main className="page vote-page">
       <header className="vote-header">
-        <p className="eyebrow">{bundle?.contest.name}</p>
+        <p className="eyebrow">{bundle.contest.name}</p>
         <h1 className="brand">Cast your votes</h1>
         <p className="lede">
           Each costume can only win one category.
@@ -456,7 +413,8 @@ export function VotePage() {
           ) : (
             <ul className="choice-list">
               {availableContestants.map((contestant) => {
-                const selected = selections[currentCategory.id] === contestant.id;
+                const selected =
+                  selections[currentCategory.id] === contestant.id;
                 return (
                   <li key={contestant.id}>
                     <button
@@ -465,7 +423,12 @@ export function VotePage() {
                       onClick={() => selectContestant(contestant.id)}
                       disabled={saving}
                     >
-                      {contestant.name}
+                      <ContestantAvatar
+                        name={contestant.name}
+                        imageKey={contestant.imageKey}
+                        size="lg"
+                      />
+                      <span>{contestant.name}</span>
                     </button>
                   </li>
                 );
@@ -502,7 +465,10 @@ export function VotePage() {
               type="button"
               className="btn btn-primary"
               onClick={finish}
-              disabled={saving || (!hasSelection && !noContestantsLeft && !ballotResolved)}
+              disabled={
+                saving ||
+                (!hasSelection && !noContestantsLeft && !ballotResolved)
+              }
             >
               Finish
             </button>
@@ -519,5 +485,363 @@ export function VotePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function RoundBallot({
+  bundle,
+  ballotId,
+  round,
+  eligible,
+  initialContestantId,
+  initiallyComplete,
+}: {
+  bundle: ContestBundle;
+  ballotId: string;
+  round: number;
+  eligible: Contestant[];
+  initialContestantId: string | null;
+  initiallyComplete: boolean;
+}) {
+  const [phase, setPhase] = useState<Phase>(
+    initiallyComplete
+      ? 'done'
+      : bundle.contest.isOpen
+        ? 'voting'
+        : 'closed',
+  );
+  const [selection, setSelection] = useState<string | null>(initialContestantId);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false);
+
+  const selectedContestant = eligible.find((c) => c.id === selection) ?? null;
+
+  async function persist(contestantId: string | null) {
+    setSaving(true);
+    setError(null);
+    try {
+      await getDataStore().saveRoundVote({
+        ballotId,
+        contestId: bundle.contest.id,
+        round,
+        contestantId,
+      });
+      setSaveFlash(true);
+      window.setTimeout(() => setSaveFlash(false), 1200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save vote');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function selectContestant(contestantId: string) {
+    setSelection(contestantId);
+    void persist(contestantId);
+  }
+
+  function finish() {
+    if (!selection) return;
+    markBallotComplete(ballotId, round);
+    setPhase('done');
+  }
+
+  async function changeVote() {
+    if (!bundle.contest.isOpen) {
+      setPhase('closed');
+      return;
+    }
+    clearBallotComplete(ballotId, round);
+    setPhase('voting');
+    setError(null);
+  }
+
+  if (phase === 'closed') {
+    return (
+      <main className="page">
+        <h1 className="brand">Costume Contest</h1>
+        <p className="lede">
+          Round {round} voting is closed
+          {round === 1 ? '. Wait for the final round.' : '.'}
+        </p>
+        {selectedContestant && (
+          <ul className="ballot-summary">
+            <li>
+              <span>Your pick</span>
+              <strong className="summary-with-avatar">
+                <ContestantAvatar
+                  name={selectedContestant.name}
+                  imageKey={selectedContestant.imageKey}
+                  size="sm"
+                />
+                {selectedContestant.name}
+              </strong>
+            </li>
+          </ul>
+        )}
+        <Link className="text-link" to="/results">
+          See live results
+        </Link>
+      </main>
+    );
+  }
+
+  if (phase === 'done') {
+    return (
+      <main className="page">
+        <p className="eyebrow">Round {round} saved</p>
+        <h1 className="brand">Thanks for voting!</h1>
+        <p className="lede">
+          {round === 1
+            ? 'Your Round 1 pick is in. Come back when the final round opens.'
+            : 'Your final pick is locked to this browser.'}
+        </p>
+        {selectedContestant && (
+          <ul className="ballot-summary">
+            <li>
+              <span>Your pick</span>
+              <strong className="summary-with-avatar">
+                <ContestantAvatar
+                  name={selectedContestant.name}
+                  imageKey={selectedContestant.imageKey}
+                  size="sm"
+                />
+                {selectedContestant.name}
+              </strong>
+            </li>
+          </ul>
+        )}
+        <div className="actions">
+          {bundle.contest.isOpen && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void changeVote()}
+            >
+              Change my vote
+            </button>
+          )}
+          <Link className="btn btn-primary" to="/results">
+            Watch live results
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page vote-page">
+      <header className="vote-header">
+        <p className="eyebrow">
+          {bundle.contest.name} · Round {round}
+        </p>
+        <h1 className="brand">
+          {round === 1 ? 'Pick your favorite' : 'Pick the winner'}
+        </h1>
+        <p className="lede">
+          {round === 1
+            ? 'Choose one costume. The top three advance to the final.'
+            : 'Only the finalists remain. Everyone votes again from scratch.'}
+          {saveFlash && <span className="save-flash"> · Saved</span>}
+          {saving && !saveFlash && <span className="muted"> · Saving…</span>}
+        </p>
+      </header>
+
+      {eligible.length === 0 ? (
+        <p className="muted">No contestants available for this round.</p>
+      ) : (
+        <ul className="choice-list round-choice-list">
+          {eligible.map((contestant) => {
+            const selected = selection === contestant.id;
+            return (
+              <li key={contestant.id}>
+                <button
+                  type="button"
+                  className={selected ? 'choice selected' : 'choice'}
+                  onClick={() => selectContestant(contestant.id)}
+                  disabled={saving}
+                >
+                  <ContestantAvatar
+                    name={contestant.name}
+                    imageKey={contestant.imageKey}
+                    size="xl"
+                  />
+                  <span>{contestant.name}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {error && <p className="error">{error}</p>}
+
+      <div className="actions sticky-actions">
+        <span />
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={finish}
+          disabled={!selection || saving}
+        >
+          Finish
+        </button>
+      </div>
+    </main>
+  );
+}
+
+export function VotePage() {
+  const [bundle, setBundle] = useState<ContestBundle | null>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [classicSelections, setClassicSelections] = useState<
+    Record<string, string>
+  >({});
+  const [classicComplete, setClassicComplete] = useState(false);
+  const [roundSelection, setRoundSelection] = useState<string | null>(null);
+  const [roundComplete, setRoundComplete] = useState(false);
+  const ballotId = useMemo(() => ensureBallotId(), []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const store = getDataStore();
+        const active = await store.getActiveContest();
+        if (cancelled) return;
+
+        if (!active) {
+          setPhase('empty');
+          return;
+        }
+
+        setBundle(active);
+        const existingVotes = await store.getVotesForBallot(ballotId);
+        if (cancelled) return;
+
+        if (active.contest.votingSystem === 'multiRound') {
+          const round = active.contest.currentRound;
+          const roundVote = existingVotes.find((v) => v.round === round);
+          setRoundSelection(roundVote?.contestantId ?? null);
+          setRoundComplete(isBallotMarkedComplete(ballotId, round));
+          if (!active.contest.isOpen && !roundVote) {
+            setPhase('closed');
+            return;
+          }
+          setPhase('voting');
+          return;
+        }
+
+        const map = buildSelectionsFromVotes(existingVotes);
+        setClassicSelections(map);
+        const complete = isBallotMarkedComplete(ballotId);
+        setClassicComplete(complete);
+
+        if (complete) {
+          setPhase('voting');
+          return;
+        }
+
+        if (!active.contest.isOpen) {
+          setPhase('closed');
+          return;
+        }
+
+        setPhase('voting');
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load contest');
+          setPhase('empty');
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [ballotId]);
+
+  if (phase === 'loading') {
+    return (
+      <main className="page">
+        <p className="muted">Loading the contest…</p>
+      </main>
+    );
+  }
+
+  if (phase === 'empty' || !bundle) {
+    return (
+      <main className="page">
+        <h1 className="brand">Costume Contest</h1>
+        <p className="lede">No contest is set up yet.</p>
+        {error && <p className="error">{error}</p>}
+        <p className="muted">
+          Ask the host to open the <Link to="/admin">admin page</Link> and add
+          contestants.
+        </p>
+      </main>
+    );
+  }
+
+  if (bundle.contest.votingSystem === 'multiRound') {
+    if (phase === 'closed') {
+      return (
+        <main className="page">
+          <h1 className="brand">Costume Contest</h1>
+          <p className="lede">
+            Round {bundle.contest.currentRound} voting is closed for now.
+          </p>
+          <Link className="text-link" to="/results">
+            See live results
+          </Link>
+        </main>
+      );
+    }
+
+    const round = bundle.contest.currentRound;
+    const eligible =
+      round === 2
+        ? bundle.contestants.filter((c) =>
+            bundle.contest.finalistIds.includes(c.id),
+          )
+        : bundle.contestants;
+
+    return (
+      <RoundBallot
+        key={`round-${round}-${bundle.contest.isOpen}`}
+        bundle={bundle}
+        ballotId={ballotId}
+        round={round}
+        eligible={eligible}
+        initialContestantId={roundSelection}
+        initiallyComplete={roundComplete}
+      />
+    );
+  }
+
+  if (phase === 'closed' && !classicComplete) {
+    return (
+      <main className="page">
+        <h1 className="brand">Costume Contest</h1>
+        <p className="lede">Voting is closed for now.</p>
+        <Link className="text-link" to="/results">
+          See live results
+        </Link>
+      </main>
+    );
+  }
+
+  return (
+    <ClassicBallot
+      key={bundle.contest.id}
+      bundle={bundle}
+      ballotId={ballotId}
+      initialSelections={classicSelections}
+      initiallyComplete={classicComplete}
+    />
   );
 }
