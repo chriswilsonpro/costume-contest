@@ -1,3 +1,860 @@
 {
-  "version": "1.3"
+  "auth": {
+    "user_pool_id": "us-east-1_jMtvDdcA1",
+    "aws_region": "us-east-1",
+    "user_pool_client_id": "2h5qoc1cc7hl3ues456pbfvl4k",
+    "identity_pool_id": "us-east-1:ab6987f8-e35b-4f19-b44d-9d6415c226ae",
+    "mfa_methods": [],
+    "standard_required_attributes": [
+      "email"
+    ],
+    "username_attributes": [
+      "email"
+    ],
+    "user_verification_types": [
+      "email"
+    ],
+    "groups": [],
+    "mfa_configuration": "NONE",
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": true,
+      "require_uppercase": true
+    },
+    "unauthenticated_identities_enabled": true
+  },
+  "data": {
+    "url": "https://z4rp3sm3ojal3ky2r3qgo6qah4.appsync-api.us-east-1.amazonaws.com/graphql",
+    "aws_region": "us-east-1",
+    "api_key": "da2-nlzu2ullfnhfbf2y4kauecth6q",
+    "default_authorization_type": "API_KEY",
+    "authorization_types": [
+      "AMAZON_COGNITO_USER_POOLS",
+      "AWS_IAM"
+    ],
+    "model_introspection": {
+      "version": 1,
+      "models": {
+        "Contest": {
+          "name": "Contest",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "name": {
+              "name": "name",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "isOpen": {
+              "name": "isOpen",
+              "isArray": false,
+              "type": "Boolean",
+              "isRequired": true,
+              "attributes": []
+            },
+            "votingSystem": {
+              "name": "votingSystem",
+              "isArray": false,
+              "type": {
+                "enum": "ContestVotingSystem"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "currentRound": {
+              "name": "currentRound",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": false,
+              "attributes": []
+            },
+            "finalistIds": {
+              "name": "finalistIds",
+              "isArray": true,
+              "type": "String",
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true
+            },
+            "themeColor": {
+              "name": "themeColor",
+              "isArray": false,
+              "type": {
+                "enum": "ContestThemeColor"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "titleFont": {
+              "name": "titleFont",
+              "isArray": false,
+              "type": {
+                "enum": "ContestTitleFont"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "bodyFont": {
+              "name": "bodyFont",
+              "isArray": false,
+              "type": {
+                "enum": "ContestBodyFont"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "titleSize": {
+              "name": "titleSize",
+              "isArray": false,
+              "type": {
+                "enum": "ContestTitleSize"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "bodySize": {
+              "name": "bodySize",
+              "isArray": false,
+              "type": {
+                "enum": "ContestBodySize"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "resultsBackground": {
+              "name": "resultsBackground",
+              "isArray": false,
+              "type": {
+                "enum": "ContestResultsBackground"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "resultsBackgroundKey": {
+              "name": "resultsBackgroundKey",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "categories": {
+              "name": "categories",
+              "isArray": true,
+              "type": {
+                "model": "Category"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "contestId"
+                ]
+              }
+            },
+            "contestants": {
+              "name": "contestants",
+              "isArray": true,
+              "type": {
+                "model": "Contestant"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "contestId"
+                ]
+              }
+            },
+            "ballots": {
+              "name": "ballots",
+              "isArray": true,
+              "type": {
+                "model": "Ballot"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "contestId"
+                ]
+              }
+            },
+            "votes": {
+              "name": "votes",
+              "isArray": true,
+              "type": {
+                "model": "Vote"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "contestId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "Contests",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "apiKey",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "Category": {
+          "name": "Category",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contestId": {
+              "name": "contestId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contest": {
+              "name": "contest",
+              "isArray": false,
+              "type": {
+                "model": "Contest"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "contestId"
+                ]
+              }
+            },
+            "name": {
+              "name": "name",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "sortOrder": {
+              "name": "sortOrder",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": true,
+              "attributes": []
+            },
+            "votes": {
+              "name": "votes",
+              "isArray": true,
+              "type": {
+                "model": "Vote"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "categoryId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "Categories",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "apiKey",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "Contestant": {
+          "name": "Contestant",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contestId": {
+              "name": "contestId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contest": {
+              "name": "contest",
+              "isArray": false,
+              "type": {
+                "model": "Contest"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "contestId"
+                ]
+              }
+            },
+            "name": {
+              "name": "name",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "sortOrder": {
+              "name": "sortOrder",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": true,
+              "attributes": []
+            },
+            "imageKey": {
+              "name": "imageKey",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "votes": {
+              "name": "votes",
+              "isArray": true,
+              "type": {
+                "model": "Vote"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "contestantId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "Contestants",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "apiKey",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "Ballot": {
+          "name": "Ballot",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contestId": {
+              "name": "contestId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contest": {
+              "name": "contest",
+              "isArray": false,
+              "type": {
+                "model": "Contest"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "contestId"
+                ]
+              }
+            },
+            "submittedAt": {
+              "name": "submittedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "votes": {
+              "name": "votes",
+              "isArray": true,
+              "type": {
+                "model": "Vote"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "ballotId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "Ballots",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "apiKey",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "Vote": {
+          "name": "Vote",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "ballotId": {
+              "name": "ballotId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "ballot": {
+              "name": "ballot",
+              "isArray": false,
+              "type": {
+                "model": "Ballot"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "ballotId"
+                ]
+              }
+            },
+            "contestId": {
+              "name": "contestId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contest": {
+              "name": "contest",
+              "isArray": false,
+              "type": {
+                "model": "Contest"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "contestId"
+                ]
+              }
+            },
+            "categoryId": {
+              "name": "categoryId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": false,
+              "attributes": []
+            },
+            "category": {
+              "name": "category",
+              "isArray": false,
+              "type": {
+                "model": "Category"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "categoryId"
+                ]
+              }
+            },
+            "contestantId": {
+              "name": "contestantId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "contestant": {
+              "name": "contestant",
+              "isArray": false,
+              "type": {
+                "model": "Contestant"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "contestantId"
+                ]
+              }
+            },
+            "round": {
+              "name": "round",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": false,
+              "attributes": []
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "Votes",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "apiKey",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        }
+      },
+      "enums": {
+        "ContestVotingSystem": {
+          "name": "ContestVotingSystem",
+          "values": [
+            "classic",
+            "multiRound"
+          ]
+        },
+        "ContestThemeColor": {
+          "name": "ContestThemeColor",
+          "values": [
+            "dark",
+            "light",
+            "pumpkin",
+            "neon"
+          ]
+        },
+        "ContestTitleFont": {
+          "name": "ContestTitleFont",
+          "values": [
+            "serif",
+            "sans",
+            "display",
+            "mono",
+            "bebas",
+            "cinzel",
+            "alfa",
+            "fredoka",
+            "righteous"
+          ]
+        },
+        "ContestBodyFont": {
+          "name": "ContestBodyFont",
+          "values": [
+            "serif",
+            "sans",
+            "display",
+            "mono",
+            "bebas",
+            "cinzel",
+            "alfa",
+            "fredoka",
+            "righteous"
+          ]
+        },
+        "ContestTitleSize": {
+          "name": "ContestTitleSize",
+          "values": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "ContestBodySize": {
+          "name": "ContestBodySize",
+          "values": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "ContestResultsBackground": {
+          "name": "ContestResultsBackground",
+          "values": [
+            "plain",
+            "halloween",
+            "custom"
+          ]
+        }
+      },
+      "nonModels": {}
+    }
+  },
+  "storage": {
+    "aws_region": "us-east-1",
+    "bucket_name": "amplify-costumecontest-ch-costumecontestmediabucke-p2ynfbnvemni",
+    "buckets": [
+      {
+        "name": "costumeContestMedia",
+        "bucket_name": "amplify-costumecontest-ch-costumecontestmediabucke-p2ynfbnvemni",
+        "aws_region": "us-east-1",
+        "paths": {
+          "contestant-images/*": {
+            "guest": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ],
+            "authenticated": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "backgrounds/*": {
+            "guest": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ],
+            "authenticated": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "version": "1.5"
 }
