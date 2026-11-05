@@ -22,6 +22,8 @@ export type ContestPatch = Partial<
     | 'themeColor'
     | 'titleFont'
     | 'bodyFont'
+    | 'titleSize'
+    | 'bodySize'
     | 'resultsBackground'
     | 'resultsBackgroundKey'
   >

@@ -256,8 +256,17 @@ function RoundResultCards({
           highlightWinners && entry.count > 0 && entry.count === leadCount;
         const advancing = advancingIds?.has(entry.contestantId);
         const tone = RESULT_BAR_TONES[index % RESULT_BAR_TONES.length];
+        const placeClass =
+          index === 0
+            ? "place-1"
+            : index === 1
+              ? "place-2"
+              : index === 2
+                ? "place-3"
+                : "";
         const classes = [
           "result-entry-card",
+          placeClass,
           isLeader ? "is-winner" : "",
           advancing && !isLeader ? "is-advancing" : "",
           tone,

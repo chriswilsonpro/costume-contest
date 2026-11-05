@@ -13,6 +13,7 @@ import {
   type ResultsBackground,
   type ThemeColor,
   type ThemeFont,
+  type ThemeSize,
   type Vote,
   type VotingSystem,
 } from './types';
@@ -40,8 +41,20 @@ function asThemeColor(value: string | null | undefined): ThemeColor {
 }
 
 function asThemeFont(value: string | null | undefined): ThemeFont {
-  if (value === 'sans' || value === 'display' || value === 'mono') return value;
+  if (
+    value === 'sans' ||
+    value === 'display' ||
+    value === 'mono' ||
+    value === 'bebas'
+  ) {
+    return value;
+  }
   return 'serif';
+}
+
+function asThemeSize(value: string | null | undefined): ThemeSize {
+  if (value === 'small' || value === 'large') return value;
+  return 'medium';
 }
 
 function mapContest(row: {
@@ -54,6 +67,8 @@ function mapContest(row: {
   themeColor?: string | null;
   titleFont?: string | null;
   bodyFont?: string | null;
+  titleSize?: string | null;
+  bodySize?: string | null;
   resultsBackground?: string | null;
   resultsBackgroundKey?: string | null;
   createdAt?: string | null;
@@ -71,6 +86,8 @@ function mapContest(row: {
     themeColor: asThemeColor(row.themeColor),
     titleFont: asThemeFont(row.titleFont),
     bodyFont: asThemeFont(row.bodyFont ?? 'sans'),
+    titleSize: asThemeSize(row.titleSize),
+    bodySize: asThemeSize(row.bodySize),
     resultsBackground: asResultsBackground(row.resultsBackground),
     resultsBackgroundKey: row.resultsBackgroundKey ?? null,
     createdAt: row.createdAt ?? undefined,
@@ -229,6 +246,8 @@ export const amplifyStore = {
       themeColor: 'dark',
       titleFont: 'serif',
       bodyFont: 'sans',
+      titleSize: 'medium',
+      bodySize: 'medium',
       resultsBackground: 'halloween',
     });
     if (errors?.length || !contestRow) {
@@ -275,6 +294,8 @@ export const amplifyStore = {
         | 'themeColor'
         | 'titleFont'
         | 'bodyFont'
+        | 'titleSize'
+        | 'bodySize'
         | 'resultsBackground'
         | 'resultsBackgroundKey'
       >

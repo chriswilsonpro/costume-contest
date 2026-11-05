@@ -21,6 +21,7 @@ import type {
   ResultsBackground,
   ThemeColor,
   ThemeFont,
+  ThemeSize,
   Vote,
   VotingSystem,
 } from '../lib/types';
@@ -28,6 +29,7 @@ import {
   RESULTS_BACKGROUND_PRESETS,
   THEME_COLOR_PRESETS,
   THEME_FONT_OPTIONS,
+  THEME_SIZE_OPTIONS,
 } from '../lib/types';
 
 type PendingDelete = { id: string; name: string };
@@ -421,6 +423,8 @@ export function AdminPage() {
       themeColor: ThemeColor;
       titleFont: ThemeFont;
       bodyFont: ThemeFont;
+      titleSize: ThemeSize;
+      bodySize: ThemeSize;
       resultsBackground: ResultsBackground;
       resultsBackgroundKey: string | null;
     }>,
@@ -845,6 +849,22 @@ export function AdminPage() {
                 </button>
               ))}
             </div>
+            <div className="theme-size-row" role="group" aria-label="Title size">
+              {THEME_SIZE_OPTIONS.map((option) => (
+                <button
+                  key={`title-size-${option.id}`}
+                  type="button"
+                  className={
+                    bundle.contest.titleSize === option.id
+                      ? 'theme-size-btn selected'
+                      : 'theme-size-btn'
+                  }
+                  onClick={() => void patchTheme({ titleSize: option.id })}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
 
             <h3 className="theme-subheader">Body font</h3>
             <div className="theme-font-row">
@@ -866,6 +886,22 @@ export function AdminPage() {
                     Aa
                   </span>
                   <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="theme-size-row" role="group" aria-label="Body size">
+              {THEME_SIZE_OPTIONS.map((option) => (
+                <button
+                  key={`body-size-${option.id}`}
+                  type="button"
+                  className={
+                    bundle.contest.bodySize === option.id
+                      ? 'theme-size-btn selected'
+                      : 'theme-size-btn'
+                  }
+                  onClick={() => void patchTheme({ bodySize: option.id })}
+                >
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -914,6 +950,8 @@ export function AdminPage() {
               data-color={bundle.contest.themeColor}
               data-title-font={bundle.contest.titleFont}
               data-body-font={bundle.contest.bodyFont}
+              data-title-size={bundle.contest.titleSize}
+              data-body-size={bundle.contest.bodySize}
             >
               <p className="theme-preview-eyebrow">Live sample</p>
               <h4 className="theme-preview-title">Costume Contest</h4>

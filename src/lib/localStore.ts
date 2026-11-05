@@ -48,6 +48,8 @@ function normalizeContest(raw: Contest): Contest {
     themeColor: raw.themeColor ?? 'dark',
     titleFont: raw.titleFont ?? 'serif',
     bodyFont: raw.bodyFont ?? 'sans',
+    titleSize: raw.titleSize ?? 'medium',
+    bodySize: raw.bodySize ?? 'medium',
     resultsBackground: raw.resultsBackground ?? 'halloween',
     resultsBackgroundKey: raw.resultsBackgroundKey ?? null,
   };
@@ -181,6 +183,8 @@ export const localStore = {
       themeColor: 'dark',
       titleFont: 'serif',
       bodyFont: 'sans',
+      titleSize: 'medium',
+      bodySize: 'medium',
       resultsBackground: 'halloween',
       resultsBackgroundKey: null,
       createdAt: now,
@@ -216,6 +220,8 @@ export const localStore = {
         | 'themeColor'
         | 'titleFont'
         | 'bodyFont'
+        | 'titleSize'
+        | 'bodySize'
         | 'resultsBackground'
         | 'resultsBackgroundKey'
       >
@@ -448,6 +454,8 @@ export type ContestPatch = Partial<
     | 'themeColor'
     | 'titleFont'
     | 'bodyFont'
+    | 'titleSize'
+    | 'bodySize'
     | 'resultsBackground'
     | 'resultsBackgroundKey'
   >

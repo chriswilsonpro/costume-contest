@@ -1,7 +1,8 @@
 export type VotingSystem = 'classic' | 'multiRound';
 export type ResultsBackground = 'plain' | 'halloween' | 'custom';
 export type ThemeColor = 'dark' | 'light' | 'pumpkin' | 'neon';
-export type ThemeFont = 'serif' | 'sans' | 'display' | 'mono';
+export type ThemeFont = 'serif' | 'sans' | 'display' | 'mono' | 'bebas';
+export type ThemeSize = 'small' | 'medium' | 'large';
 
 export type Contest = {
   id: string;
@@ -13,6 +14,8 @@ export type Contest = {
   themeColor: ThemeColor;
   titleFont: ThemeFont;
   bodyFont: ThemeFont;
+  titleSize: ThemeSize;
+  bodySize: ThemeSize;
   resultsBackground: ResultsBackground;
   resultsBackgroundKey?: string | null;
   createdAt?: string;
@@ -87,6 +90,16 @@ export const THEME_FONT_OPTIONS: {
   { id: 'sans', label: 'Sans-serif', sampleFamily: '"Manrope", system-ui, sans-serif' },
   { id: 'display', label: 'Display', sampleFamily: '"Bungee", cursive' },
   { id: 'mono', label: 'Mono', sampleFamily: '"Space Mono", ui-monospace, monospace' },
+  { id: 'bebas', label: 'Bebas Neue', sampleFamily: '"Bebas Neue", sans-serif' },
+];
+
+export const THEME_SIZE_OPTIONS: {
+  id: ThemeSize;
+  label: string;
+}[] = [
+  { id: 'small', label: 'Small' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'large', label: 'Large' },
 ];
 
 export const RESULTS_BACKGROUND_PRESETS: {
