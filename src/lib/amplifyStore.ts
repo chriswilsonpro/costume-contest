@@ -45,7 +45,11 @@ function asThemeFont(value: string | null | undefined): ThemeFont {
     value === 'sans' ||
     value === 'display' ||
     value === 'mono' ||
-    value === 'bebas'
+    value === 'bebas' ||
+    value === 'cinzel' ||
+    value === 'alfa' ||
+    value === 'fredoka' ||
+    value === 'righteous'
   ) {
     return value;
   }

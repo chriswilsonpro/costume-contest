@@ -1,7 +1,16 @@
 export type VotingSystem = 'classic' | 'multiRound';
 export type ResultsBackground = 'plain' | 'halloween' | 'custom';
 export type ThemeColor = 'dark' | 'light' | 'pumpkin' | 'neon';
-export type ThemeFont = 'serif' | 'sans' | 'display' | 'mono' | 'bebas';
+export type ThemeFont =
+  | 'serif'
+  | 'sans'
+  | 'display'
+  | 'mono'
+  | 'bebas'
+  | 'cinzel'
+  | 'alfa'
+  | 'fredoka'
+  | 'righteous';
 export type ThemeSize = 'small' | 'medium' | 'large';
 
 export type Contest = {
@@ -91,6 +100,10 @@ export const THEME_FONT_OPTIONS: {
   { id: 'display', label: 'Display', sampleFamily: '"Bungee", cursive' },
   { id: 'mono', label: 'Mono', sampleFamily: '"Space Mono", ui-monospace, monospace' },
   { id: 'bebas', label: 'Bebas Neue', sampleFamily: '"Bebas Neue", sans-serif' },
+  { id: 'cinzel', label: 'Cinzel', sampleFamily: '"Cinzel", Georgia, serif' },
+  { id: 'alfa', label: 'Alfa Slab', sampleFamily: '"Alfa Slab One", Georgia, serif' },
+  { id: 'fredoka', label: 'Fredoka', sampleFamily: '"Fredoka", system-ui, sans-serif' },
+  { id: 'righteous', label: 'Righteous', sampleFamily: '"Righteous", cursive' },
 ];
 
 export const THEME_SIZE_OPTIONS: {
