@@ -82,6 +82,7 @@ export function AdminPage() {
   const [editingContestantName, setEditingContestantName] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmResetVoting, setConfirmResetVoting] = useState(false);
   const [confirmSystemChange, setConfirmSystemChange] =
     useState<VotingSystem | null>(null);
   const [modalBusy, setModalBusy] = useState(false);
@@ -294,6 +295,26 @@ export function AdminPage() {
       setPendingDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not remove contestant');
+    } finally {
+      setModalBusy(false);
+    }
+  }
+
+  async function runResetVoting() {
+    if (!bundle) return;
+    setModalBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await getDataStore().resetVoting(bundle.contest.id);
+      setBundle({ ...bundle, contest: updated });
+      setVotes([]);
+      setConfirmResetVoting(false);
+      setMessage(
+        'Voting was reset. Ballots are cleared and the contest is closed at Round 1. Theme and contestants were kept.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset voting');
     } finally {
       setModalBusy(false);
     }
@@ -1132,17 +1153,36 @@ export function AdminPage() {
 
       <section className="panel danger-panel">
         <h2>Danger zone</h2>
-        <p className="muted">
-          Reset clears the contest, categories, contestants, ballots, votes, and
-          uploaded images. This cannot be undone.
-        </p>
-        <button
-          type="button"
-          className="btn btn-danger"
-          onClick={() => setConfirmReset(true)}
-        >
-          Reset everything
-        </button>
+        <div className="danger-actions">
+          <div>
+            <p className="muted">
+              Reset voting clears all ballots and votes, closes voting, and
+              returns to Round 1. Theme, fonts, backgrounds, and contestants are
+              kept.
+            </p>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={!bundle}
+              onClick={() => setConfirmResetVoting(true)}
+            >
+              Reset voting
+            </button>
+          </div>
+          <div>
+            <p className="muted">
+              Reset everything clears the contest, categories, contestants,
+              ballots, votes, and uploaded images. This cannot be undone.
+            </p>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setConfirmReset(true)}
+            >
+              Reset everything
+            </button>
+          </div>
+        </div>
       </section>
 
       {pendingDelete && (
@@ -1155,6 +1195,20 @@ export function AdminPage() {
           onConfirm={() => void confirmRemoveContestant()}
           onCancel={() => {
             if (!modalBusy) setPendingDelete(null);
+          }}
+        />
+      )}
+
+      {confirmResetVoting && (
+        <ConfirmModal
+          title="Reset voting?"
+          message="This deletes all ballots and votes, closes voting, and returns to Round 1. Contestants and theme settings stay as they are."
+          confirmLabel="Reset voting"
+          danger
+          busy={modalBusy}
+          onConfirm={() => void runResetVoting()}
+          onCancel={() => {
+            if (!modalBusy) setConfirmResetVoting(false);
           }}
         />
       )}

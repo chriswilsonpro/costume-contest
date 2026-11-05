@@ -323,6 +323,23 @@ export const localStore = {
     writeDb(db);
   },
 
+  async resetVoting(contestId: string): Promise<Contest> {
+    await this.clearVotes(contestId);
+    if (typeof localStorage !== 'undefined') {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('costume_ballot_complete_')) keysToRemove.push(key);
+      }
+      for (const key of keysToRemove) localStorage.removeItem(key);
+    }
+    return this.updateContest(contestId, {
+      isOpen: false,
+      currentRound: 1,
+      finalistIds: [],
+    });
+  },
+
   async saveBallotVotes(input: {
     ballotId: string;
     contestId: string;

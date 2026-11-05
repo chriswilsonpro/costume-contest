@@ -744,6 +744,17 @@ input {
   border-color: rgba(227, 93, 138, 0.35);
 }
 
+.danger-actions {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.danger-actions > div {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
 .danger-panel h2 {
   color: #f3a0bc;
 }

@@ -49,6 +49,8 @@ export type DataStore = {
   getVotesForBallot(ballotId: string): Promise<Vote[]>;
   listVotes(contestId: string): Promise<Vote[]>;
   clearVotes(contestId: string): Promise<void>;
+  /** Clears votes/ballots and returns contest to closed Round 1. Keeps theme and contestants. */
+  resetVoting(contestId: string): Promise<Contest>;
   saveBallotVotes(input: {
     ballotId: string;
     contestId: string;
@@ -102,6 +104,7 @@ function createStore(): DataStore {
       getVotesForBallot: (ballotId) => amplifyStore.getVotesForBallot(ballotId),
       listVotes: (contestId) => amplifyStore.listVotes(contestId),
       clearVotes: (contestId) => amplifyStore.clearVotes(contestId),
+      resetVoting: (contestId) => amplifyStore.resetVoting(contestId),
       saveBallotVotes: (input) => amplifyStore.saveBallotVotes(input),
       saveRoundVote: (input) => amplifyStore.saveRoundVote(input),
       uploadImage: (kind, file) => amplifyStore.uploadImage(kind, file),
@@ -129,6 +132,7 @@ function createStore(): DataStore {
     getVotesForBallot: (ballotId) => localStore.getVotesForBallot(ballotId),
     listVotes: (contestId) => localStore.listVotes(contestId),
     clearVotes: (contestId) => localStore.clearVotes(contestId),
+    resetVoting: (contestId) => localStore.resetVoting(contestId),
     saveBallotVotes: (input) => localStore.saveBallotVotes(input),
     saveRoundVote: (input) => localStore.saveRoundVote(input),
     uploadImage: (kind, file) => localStore.uploadImage(kind, file),
