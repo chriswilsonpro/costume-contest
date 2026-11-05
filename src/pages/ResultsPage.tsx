@@ -236,12 +236,15 @@ function RoundResultCards({
   advancingIds,
   highlightWinners = false,
   showConfetti = false,
+  confettiOnAll = false,
 }: {
   ranked: RoundRankedEntry[];
   contestants: ContestBundle["contestants"];
   advancingIds?: Set<string>;
   highlightWinners?: boolean;
   showConfetti?: boolean;
+  /** Confetti behind every card (e.g. Round 2 finalists). */
+  confettiOnAll?: boolean;
 }) {
   const totalVotes = ranked.reduce((sum, entry) => sum + entry.count, 0);
   const leadCount = ranked[0]?.count ?? 0;
@@ -264,11 +267,14 @@ function RoundResultCards({
               : index === 2
                 ? "place-3"
                 : "";
+        const showCardConfetti =
+          confettiOnAll || (showConfetti && isLeader);
         const classes = [
           "result-entry-card",
           placeClass,
           isLeader ? "is-winner" : "",
           advancing && !isLeader ? "is-advancing" : "",
+          showCardConfetti ? "has-confetti" : "",
           tone,
         ]
           .filter(Boolean)
@@ -276,7 +282,7 @@ function RoundResultCards({
 
         return (
           <li key={entry.contestantId} className={classes}>
-            {isLeader && showConfetti && <WinnerConfetti />}
+            {showCardConfetti && <WinnerConfetti />}
             <div className="result-entry-media">
               {isLeader && (
                 <span className="result-winner-badge">
@@ -430,6 +436,7 @@ function RoundResults({
               <RoundResultCards
                 ranked={round2Ranked}
                 contestants={bundle.contestants}
+                confettiOnAll
               />
             )}
           </>

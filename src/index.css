@@ -1924,11 +1924,24 @@ input:focus {
   flex-direction: column;
   border-radius: 18px;
   overflow: hidden;
-  background: var(--surface);
+  /* background: var(--surface); */
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
   transform-origin: center bottom;
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+    var(--media-bg);
+}
+
+.result-entry-card.has-confetti .result-entry-media,
+.result-entry-card.has-confetti .result-entry-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.result-entry-card.has-confetti .winner-confetti {
+  z-index: 0;
 }
 
 .result-entry-card.place-1 {
@@ -1970,9 +1983,6 @@ input:focus {
   display: grid;
   place-items: center;
   padding: 1.1rem;
-  background:
-    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
-    var(--media-bg);
 }
 
 .result-entry-media .contestant-avatar {
