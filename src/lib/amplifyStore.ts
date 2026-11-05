@@ -64,6 +64,7 @@ function asThemeSize(value: string | null | undefined): ThemeSize {
 function mapContest(row: {
   id: string;
   name: string;
+  description?: string | null;
   isOpen?: boolean | null;
   votingSystem?: string | null;
   currentRound?: number | null;
@@ -81,6 +82,7 @@ function mapContest(row: {
   return {
     id: row.id,
     name: row.name,
+    description: row.description ?? '',
     isOpen: row.isOpen ?? true,
     votingSystem: asVotingSystem(row.votingSystem),
     currentRound: row.currentRound ?? 1,
@@ -352,6 +354,7 @@ export const amplifyStore = {
       Pick<
         Contest,
         | 'name'
+        | 'description'
         | 'isOpen'
         | 'votingSystem'
         | 'currentRound'

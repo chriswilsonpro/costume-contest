@@ -4,6 +4,7 @@ const schema = a.schema({
   Contest: a
     .model({
       name: a.string().required(),
+      description: a.string(),
       isOpen: a.boolean().required().default(true),
       votingSystem: a.enum(['classic', 'multiRound']),
       currentRound: a.integer().default(1),

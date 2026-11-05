@@ -54,6 +54,13 @@
               "isRequired": true,
               "attributes": []
             },
+            "description": {
+              "name": "description",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
             "isOpen": {
               "name": "isOpen",
               "isArray": false,

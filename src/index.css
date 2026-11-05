@@ -1027,7 +1027,8 @@ input {
   font-size: 0.9rem;
 }
 
-input {
+input,
+textarea {
   width: 100%;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -1036,7 +1037,17 @@ input {
   padding: 0.8rem 0.95rem;
 }
 
-input:focus {
+textarea {
+  font: inherit;
+  resize: vertical;
+}
+
+.details-form {
+  margin-top: 1rem;
+}
+
+input:focus,
+textarea:focus {
   outline: 2px solid rgba(161, 0, 255, 0.55);
   outline-offset: 1px;
 }

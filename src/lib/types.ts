@@ -16,6 +16,7 @@ export type ThemeSize = 'small' | 'medium' | 'large';
 export type Contest = {
   id: string;
   name: string;
+  description: string;
   isOpen: boolean;
   votingSystem: VotingSystem;
   currentRound: number;

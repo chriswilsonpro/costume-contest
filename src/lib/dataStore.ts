@@ -15,6 +15,7 @@ export type ContestPatch = Partial<
   Pick<
     Contest,
     | 'name'
+    | 'description'
     | 'isOpen'
     | 'votingSystem'
     | 'currentRound'

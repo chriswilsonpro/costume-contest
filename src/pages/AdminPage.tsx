@@ -70,6 +70,8 @@ export function AdminPage() {
   const [bundle, setBundle] = useState<ContestBundle | null>(null);
   const [votes, setVotes] = useState<Vote[]>([]);
   const [contestName, setContestName] = useState('Halloween Costume Contest');
+  const [contestDescription, setContestDescription] = useState('');
+  const [savingDetails, setSavingDetails] = useState(false);
   const [newContestant, setNewContestant] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -98,6 +100,7 @@ export function AdminPage() {
       setBundle(active);
       if (active) {
         setContestName(active.contest.name);
+        setContestDescription(active.contest.description);
         setVotes(await store.listVotes(active.contest.id));
       } else {
         setVotes([]);
@@ -144,6 +147,28 @@ export function AdminPage() {
       setMessage('Contest created with default categories.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create contest');
+    }
+  }
+
+  async function handleSaveDetails(event: FormEvent) {
+    event.preventDefault();
+    if (!bundle || !contestName.trim()) return;
+    setSavingDetails(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const updated = await getDataStore().updateContest(bundle.contest.id, {
+        name: contestName.trim(),
+        description: contestDescription.trim(),
+      });
+      setBundle({ ...bundle, contest: updated });
+      setContestName(updated.name);
+      setContestDescription(updated.description);
+      setMessage('Contest details saved.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save details');
+    } finally {
+      setSavingDetails(false);
     }
   }
 
@@ -691,6 +716,41 @@ export function AdminPage() {
                 </button>
               )}
             </div>
+
+            <form className="stack-form details-form" onSubmit={handleSaveDetails}>
+              <label>
+                Contest name
+                <input
+                  value={contestName}
+                  onChange={(e) => setContestName(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Description
+                <textarea
+                  value={contestDescription}
+                  onChange={(e) => setContestDescription(e.target.value)}
+                  rows={3}
+                  maxLength={300}
+                  placeholder="Shown in search results and link previews."
+                />
+              </label>
+              <div className="actions">
+                <button
+                  type="submit"
+                  className="btn btn-secondary"
+                  disabled={
+                    savingDetails ||
+                    !contestName.trim() ||
+                    (contestName.trim() === bundle.contest.name &&
+                      contestDescription.trim() === bundle.contest.description)
+                  }
+                >
+                  {savingDetails ? 'Saving…' : 'Save details'}
+                </button>
+              </div>
+            </form>
           </section>
 
           <section className="panel">

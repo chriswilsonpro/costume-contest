@@ -42,6 +42,7 @@ function emptyDb(): Db {
 function normalizeContest(raw: Contest): Contest {
   return {
     ...raw,
+    description: raw.description ?? '',
     votingSystem: raw.votingSystem ?? 'classic',
     currentRound: raw.currentRound ?? 1,
     finalistIds: raw.finalistIds ?? [],
@@ -176,6 +177,7 @@ export const localStore = {
     const contest: Contest = {
       id: createId(),
       name,
+      description: '',
       isOpen: true,
       votingSystem: 'classic',
       currentRound: 1,
@@ -213,6 +215,7 @@ export const localStore = {
       Pick<
         Contest,
         | 'name'
+        | 'description'
         | 'isOpen'
         | 'votingSystem'
         | 'currentRound'
@@ -464,6 +467,7 @@ export type ContestPatch = Partial<
   Pick<
     Contest,
     | 'name'
+    | 'description'
     | 'isOpen'
     | 'votingSystem'
     | 'currentRound'
