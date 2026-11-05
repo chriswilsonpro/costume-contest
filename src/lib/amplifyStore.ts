@@ -133,13 +133,62 @@ function mapContestant(c: {
   };
 }
 
+type ListPage<T> = {
+  data?: T[] | null;
+  errors?: { message: string }[];
+  nextToken?: string | null;
+};
+
+const PAGE_LIMIT = 1000;
+const DELETE_BATCH = 25;
+
+/**
+ * AppSync list queries scan one page and apply the filter to that page only,
+ * so a filtered page can be empty or partial while more matches remain.
+ * Always follow nextToken to the end.
+ */
+async function listAll<T>(
+  fetchPage: (args: { limit: number; nextToken?: string }) => Promise<ListPage<T>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let nextToken: string | undefined;
+  do {
+    const { data, errors, nextToken: token } = await fetchPage({
+      limit: PAGE_LIMIT,
+      nextToken,
+    });
+    if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
+    items.push(...(data ?? []));
+    nextToken = token ?? undefined;
+  } while (nextToken);
+  return items;
+}
+
+async function deleteRows(
+  ids: string[],
+  removeRow: (id: string) => Promise<{ errors?: { message: string }[] }>,
+): Promise<void> {
+  for (let i = 0; i < ids.length; i += DELETE_BATCH) {
+    await Promise.all(
+      ids.slice(i, i + DELETE_BATCH).map(async (id) => {
+        const result = await removeRow(id);
+        if (result.errors?.length) {
+          throw new Error(result.errors.map((e) => e.message).join(', '));
+        }
+      }),
+    );
+  }
+}
+
 async function listAllCategories(contestId: string): Promise<Category[]> {
-  const { data, errors } = await client.models.Category.list({
-    filter: { contestId: { eq: contestId } },
-  });
-  if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
+  const data = await listAll((page) =>
+    client.models.Category.list({
+      filter: { contestId: { eq: contestId } },
+      ...page,
+    }),
+  );
   return sortByOrder(
-    (data ?? []).map((c) => ({
+    data.map((c) => ({
       id: c.id,
       contestId: c.contestId,
       name: c.name,
@@ -149,11 +198,24 @@ async function listAllCategories(contestId: string): Promise<Category[]> {
 }
 
 async function listAllContestants(contestId: string): Promise<Contestant[]> {
-  const { data, errors } = await client.models.Contestant.list({
-    filter: { contestId: { eq: contestId } },
-  });
-  if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-  return sortByOrder((data ?? []).map(mapContestant));
+  const data = await listAll((page) =>
+    client.models.Contestant.list({
+      filter: { contestId: { eq: contestId } },
+      ...page,
+    }),
+  );
+  return sortByOrder(data.map(mapContestant));
+}
+
+async function listVoteRows(filter: {
+  contestId?: { eq: string };
+  ballotId?: { eq: string };
+  contestantId?: { eq: string };
+}): Promise<Vote[]> {
+  const data = await listAll((page) =>
+    client.models.Vote.list({ filter, ...page }),
+  );
+  return data.map(mapVote);
 }
 
 export const amplifyStore = {
@@ -223,9 +285,8 @@ export const amplifyStore = {
   },
 
   async getActiveContest(): Promise<ContestBundle | null> {
-    const { data, errors } = await client.models.Contest.list();
-    if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-    const contestRow = data?.[0];
+    const data = await listAll((page) => client.models.Contest.list(page));
+    const contestRow = data[0];
     if (!contestRow) return null;
 
     const contest = mapContest(contestRow);
@@ -337,11 +398,10 @@ export const amplifyStore = {
         // Continue deleting the contestant even if the file is already gone.
       }
     }
-    const { data: votes } = await client.models.Vote.list({
-      filter: { contestantId: { eq: id } },
-    });
-    await Promise.all(
-      (votes ?? []).map((vote) => client.models.Vote.delete({ id: vote.id })),
+    const votes = await listVoteRows({ contestantId: { eq: id } });
+    await deleteRows(
+      votes.map((vote) => vote.id),
+      (voteId) => client.models.Vote.delete({ id: voteId }),
     );
     const { errors } = await client.models.Contestant.delete({ id });
     if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
@@ -392,42 +452,29 @@ export const amplifyStore = {
   },
 
   async getVotesForBallot(ballotId: string): Promise<Vote[]> {
-    const { data, errors } = await client.models.Vote.list({
-      filter: { ballotId: { eq: ballotId } },
-    });
-    if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-    return (data ?? []).map(mapVote);
+    return listVoteRows({ ballotId: { eq: ballotId } });
   },
 
   async listVotes(contestId: string): Promise<Vote[]> {
-    const { data, errors } = await client.models.Vote.list({
-      filter: { contestId: { eq: contestId } },
-    });
-    if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-    return (data ?? []).map(mapVote);
+    return listVoteRows({ contestId: { eq: contestId } });
   },
 
   async clearVotes(contestId: string): Promise<void> {
-    const { data: votes, errors: voteErrors } = await client.models.Vote.list({
-      filter: { contestId: { eq: contestId } },
-    });
-    if (voteErrors?.length) {
-      throw new Error(voteErrors.map((e) => e.message).join(', '));
-    }
-    await Promise.all(
-      (votes ?? []).map((vote) => client.models.Vote.delete({ id: vote.id })),
+    const votes = await listVoteRows({ contestId: { eq: contestId } });
+    await deleteRows(
+      votes.map((vote) => vote.id),
+      (id) => client.models.Vote.delete({ id }),
     );
 
-    const { data: ballots, errors: ballotErrors } = await client.models.Ballot.list({
-      filter: { contestId: { eq: contestId } },
-    });
-    if (ballotErrors?.length) {
-      throw new Error(ballotErrors.map((e) => e.message).join(', '));
-    }
-    await Promise.all(
-      (ballots ?? []).map((ballot) =>
-        client.models.Ballot.delete({ id: ballot.id }),
-      ),
+    const ballots = await listAll((page) =>
+      client.models.Ballot.list({
+        filter: { contestId: { eq: contestId } },
+        ...page,
+      }),
+    );
+    await deleteRows(
+      ballots.map((ballot) => ballot.id),
+      (id) => client.models.Ballot.delete({ id }),
     );
   },
 
@@ -504,8 +551,9 @@ export const amplifyStore = {
     const classicVotes = existingVotes.filter(
       (vote) => vote.round == null || vote.round === 0,
     );
-    await Promise.all(
-      classicVotes.map((vote) => client.models.Vote.delete({ id: vote.id })),
+    await deleteRows(
+      classicVotes.map((vote) => vote.id),
+      (id) => client.models.Vote.delete({ id }),
     );
 
     const votes: Vote[] = [];
@@ -589,8 +637,9 @@ export const amplifyStore = {
 
     const existingVotes = await this.getVotesForBallot(input.ballotId);
     const roundVotes = existingVotes.filter((vote) => vote.round === input.round);
-    await Promise.all(
-      roundVotes.map((vote) => client.models.Vote.delete({ id: vote.id })),
+    await deleteRows(
+      roundVotes.map((vote) => vote.id),
+      (id) => client.models.Vote.delete({ id }),
     );
 
     const votes: Vote[] = [];
@@ -642,27 +691,21 @@ export const amplifyStore = {
 
   async resetEverything(): Promise<void> {
     const deleteAll = async (
-      list: () => Promise<{
-        data?: { id: string }[] | null;
-        errors?: { message: string }[];
-      }>,
+      list: (page: { limit: number; nextToken?: string }) => Promise<
+        ListPage<{ id: string }>
+      >,
       removeRow: (id: string) => Promise<{ errors?: { message: string }[] }>,
     ) => {
-      const { data, errors } = await list();
-      if (errors?.length) throw new Error(errors.map((e) => e.message).join(', '));
-      await Promise.all(
-        (data ?? []).map(async (row) => {
-          const result = await removeRow(row.id);
-          if (result.errors?.length) {
-            throw new Error(result.errors.map((e) => e.message).join(', '));
-          }
-        }),
+      const rows = await listAll(list);
+      await deleteRows(
+        rows.map((row) => row.id),
+        removeRow,
       );
     };
 
-    const contestants = await client.models.Contestant.list();
+    const contestants = await listAll((page) => client.models.Contestant.list(page));
     await Promise.all(
-      (contestants.data ?? []).map(async (row) => {
+      contestants.map(async (row) => {
         if (row.imageKey) {
           try {
             await amplifyStore.deleteImage(row.imageKey);
@@ -673,9 +716,9 @@ export const amplifyStore = {
       }),
     );
 
-    const contests = await client.models.Contest.list();
+    const contests = await listAll((page) => client.models.Contest.list(page));
     await Promise.all(
-      (contests.data ?? []).map(async (row) => {
+      contests.map(async (row) => {
         if (row.resultsBackgroundKey) {
           try {
             await amplifyStore.deleteImage(row.resultsBackgroundKey);
@@ -687,23 +730,23 @@ export const amplifyStore = {
     );
 
     await deleteAll(
-      () => client.models.Vote.list(),
+      (page) => client.models.Vote.list(page),
       (id) => client.models.Vote.delete({ id }),
     );
     await deleteAll(
-      () => client.models.Ballot.list(),
+      (page) => client.models.Ballot.list(page),
       (id) => client.models.Ballot.delete({ id }),
     );
     await deleteAll(
-      () => client.models.Contestant.list(),
+      (page) => client.models.Contestant.list(page),
       (id) => client.models.Contestant.delete({ id }),
     );
     await deleteAll(
-      () => client.models.Category.list(),
+      (page) => client.models.Category.list(page),
       (id) => client.models.Category.delete({ id }),
     );
     await deleteAll(
-      () => client.models.Contest.list(),
+      (page) => client.models.Contest.list(page),
       (id) => client.models.Contest.delete({ id }),
     );
   },
